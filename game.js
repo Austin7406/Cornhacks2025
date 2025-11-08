@@ -1,13 +1,18 @@
 // Game Constants and Configuration
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
-const GRAVITY = 0.3;
-const INITIAL_JUMP_FORCE = -8;
-const BOUNCE_FORCE = -12;
-const MOVE_SPEED = 3;
+const GRAVITY = 0.25;
+const FALLING_SPEED = .05; // Controls how fast player falls when in mid-air
+const RISING_SPEED = .05; // Controls how fast player decelerates when jumping up (same as falling speed)
+const INITIAL_JUMP_FORCE = -4; // Adjusted to maintain same jump height with slower rising speed
+const BOUNCE_FORCE = -2.4; // Adjusted proportionally to maintain same bounce height
+const MOVE_SPEED = 2;
 // Player size (doubled from original to make the banana ninja larger)
 const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 80;
+
+// Debug Settings
+const SHOW_COLLISION_BOXES = true; // Set to true to show red collision boxes for testing
 
 // Game State Management
 let gameState = 'MENU'; // MENU, LEVEL_SELECT, PLAYING, PAUSED, GAME_OVER, WIN
@@ -49,8 +54,14 @@ class Player {
     }
 
     update() {
-        // Apply gravity
-        this.velocityY += GRAVITY;
+        // Apply gravity - use same rate for both upward and downward motion
+        if (this.velocityY >= 0) {
+            // When falling, use FALLING_SPEED for controlled descent
+            this.velocityY += FALLING_SPEED;
+        } else {
+            // When jumping up, use RISING_SPEED (same as falling speed)
+            this.velocityY += RISING_SPEED;
+        }
 
         // Update position
         this.x += this.velocityX;
@@ -110,6 +121,9 @@ class Player {
             ctx.fillStyle = '#000000';
             ctx.fillRect(this.x, this.y + 10, this.width, 5);
         }
+
+        // Draw collision box for debugging
+        drawCollisionBox(this.x, this.y, this.width, this.height);
     }
 
     jump() {
@@ -169,6 +183,9 @@ class Platform {
                 ctx.stroke();
             }
         }
+
+        // Draw collision box for debugging
+        drawCollisionBox(this.x, this.y, this.width, this.height);
     }
 }
 
@@ -187,6 +204,9 @@ class Coin {
             ctx.beginPath();
             ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
             ctx.fill();
+
+            // Draw collision box for debugging
+            drawCollisionBox(this.x, this.y, this.width, this.height);
         }
     }
 }
@@ -214,6 +234,9 @@ class LifeToken {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('+', this.x + this.width/2, this.y + this.height/2);
+
+            // Draw collision box for debugging
+            drawCollisionBox(this.x, this.y, this.width, this.height);
         }
     }
 }
@@ -546,8 +569,8 @@ const level15Data = {
 // Update allLevels to include all 15 levels
 allLevels.push(level6Data, level7Data, level8Data, level9Data, level10Data, level11Data, level12Data, level13Data, level14Data, level15Data);
 
-// Create player instance
-const player = new Player(50, 500);
+// Create player instance (spawn on top of ground platform at y=550, so player y = 550 - 80 = 470)
+const player = new Player(50, 470);
 
 // Input Handling
 const keys = {
@@ -601,6 +624,15 @@ document.addEventListener('keyup', (e) => {
     }
 });
 
+// Debug Helper Function
+function drawCollisionBox(x, y, width, height) {
+    if (SHOW_COLLISION_BOXES) {
+        ctx.strokeStyle = '#FF0000'; // Red color
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+    }
+}
+
 // Collision Detection
 function checkCollision(rect1, rect2) {
     return rect1.x < rect2.x + rect2.width &&
@@ -632,8 +664,10 @@ function update() {
         if (checkCollision(player, platform)) {
             switch(platform.type) {
                 case 'normal':
-                    // Land on top of platform
-                    if (player.velocityY >= 0 && player.y < platform.y && player.y + player.height > platform.y) {
+                    // Land on top of platform only (allow movement through sides)
+                    if (player.velocityY > 0 && 
+                        player.y + player.height - player.velocityY <= platform.y && 
+                        player.y + player.height >= platform.y) {
                         player.y = platform.y - player.height;
                         player.velocityY = 0;
                         player.isJumping = false;
@@ -641,8 +675,10 @@ function update() {
                     }
                     break;
                 case 'bounce':
-                    // Bounce only when landing from above
-                    if (player.velocityY >= 0 && player.y < platform.y && player.y + player.height > platform.y) {
+                    // Bounce only when landing from above (allow movement through sides)
+                    if (player.velocityY > 0 && 
+                        player.y + player.height - player.velocityY <= platform.y && 
+                        player.y + player.height >= platform.y) {
                         player.y = platform.y - player.height;
                         player.velocityY = BOUNCE_FORCE;
                         player.isJumping = true;
@@ -857,11 +893,11 @@ if (victoryMainMenuBtn) {
 function resetLevel() {
     // Reset level position and coins, but keep lives
     player.x = 50;
-    player.y = 500;
+    player.y = 470; // Ground is at y=550, so player spawns at 550 - 80 = 470
     player.velocityX = 0;
     player.velocityY = 0;
     player.checkpointX = 50;
-    player.checkpointY = 500;
+    player.checkpointY = 470;
     document.getElementById('coinsCount').textContent = player.score;
     levelData.coins.forEach(coin => coin.collected = false);
 }
@@ -869,13 +905,13 @@ function resetLevel() {
 function resetGame() {
     // Full reset: reset everything including lives (for main menu/new game)
     player.x = 50;
-    player.y = 500;
+    player.y = 470; // Ground is at y=550, so player spawns at 550 - 80 = 470
     player.velocityX = 0;
     player.velocityY = 0;
     player.lives = 3;
     player.score = 0;
     player.checkpointX = 50;
-    player.checkpointY = 500;
+    player.checkpointY = 470;
     document.getElementById('livesCount').textContent = player.lives;
     document.getElementById('coinsCount').textContent = player.score;
     levelData.coins.forEach(coin => coin.collected = false);
