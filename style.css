@@ -1,0 +1,85 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #87CEEB;
+}
+
+.game-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 80px);
+    grid-template-rows: repeat(5, 80px);
+    gap: 2px;
+    background-color: #8B4513;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.grid-cell {
+    background-color: #90EE90;
+    border: 1px solid #006400;
+    cursor: pointer;
+    position: relative;
+}
+
+.banana-selection {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #DEB887;
+    border-radius: 5px;
+}
+
+.banana-type {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #8B4513;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: #FFE4B5;
+}
+
+.banana-type:hover {
+    background-color: #FFD700;
+}
+
+.banana-shooter {
+    pointer-events: none;
+    z-index: 1;
+}
+
+.monkey {
+    pointer-events: none;
+    z-index: 2;
+    left: 0;
+}
+
+.projectile {
+    position: absolute;
+    pointer-events: none;
+    z-index: 3;
+    transition: left 0.1s linear, top 0.1s linear;
+}
