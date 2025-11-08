@@ -5,8 +5,9 @@ const GRAVITY = 0.5;
 const INITIAL_JUMP_FORCE = -12;
 const BOUNCE_FORCE = -20;
 const MOVE_SPEED = 5;
-const PLAYER_WIDTH = 30;
-const PLAYER_HEIGHT = 40;
+// Player size (doubled from original to make the banana ninja larger)
+const PLAYER_WIDTH = 60;
+const PLAYER_HEIGHT = 80;
 
 // Game State Management
 let gameState = 'MENU'; // MENU, LEVEL_SELECT, PLAYING, PAUSED, GAME_OVER, WIN
@@ -18,6 +19,12 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
+
+// Player sprite images (attempt to load left/right facing sprites)
+const playerImgLeft = new Image();
+playerImgLeft.src = 'assets/sprites/ninja_banana_left-nobg.png';
+const playerImgRight = new Image();
+playerImgRight.src = 'assets/sprites/ninja_banana_right-nobg.png';
 
 // Game Classes
 class Player {
@@ -33,6 +40,8 @@ class Player {
         this.score = 0;
         this.checkpointX = x;
         this.checkpointY = y;
+        // Facing direction used to choose sprite ('left' or 'right')
+        this.facing = 'right';
     }
 
     update() {
@@ -56,13 +65,25 @@ class Player {
     }
 
     draw() {
-        // Draw player body (yellow rectangle)
-        ctx.fillStyle = '#FFE135';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Try to draw sprite image based on facing direction.
+        // If images aren't available yet, fall back to the simple rectangle drawing.
+        const imgLeftReady = playerImgLeft && playerImgLeft.complete && playerImgLeft.naturalWidth;
+        const imgRightReady = playerImgRight && playerImgRight.complete && playerImgRight.naturalWidth;
 
-        // Draw ninja headband (black stripe)
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(this.x, this.y + 10, this.width, 5);
+        if (this.facing === 'left' && imgLeftReady) {
+            ctx.drawImage(playerImgLeft, this.x, this.y, this.width, this.height);
+        } else if (this.facing === 'right' && imgRightReady) {
+            ctx.drawImage(playerImgRight, this.x, this.y, this.width, this.height);
+        } else if (imgRightReady) {
+            // default to right-facing if available
+            ctx.drawImage(playerImgRight, this.x, this.y, this.width, this.height);
+        } else {
+            // Fallback: simple banana rectangle with headband
+            ctx.fillStyle = '#FFE135';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(this.x, this.y + 10, this.width, 5);
+        }
     }
 
     jump() {
@@ -568,8 +589,14 @@ function update() {
 
     // Player movement
     player.velocityX = 0;
-    if (keys.left) player.velocityX = -MOVE_SPEED;
-    if (keys.right) player.velocityX = MOVE_SPEED;
+    if (keys.left) {
+        player.velocityX = -MOVE_SPEED;
+        player.facing = 'left';
+    }
+    if (keys.right) {
+        player.velocityX = MOVE_SPEED;
+        player.facing = 'right';
+    }
 
     player.update();
 
