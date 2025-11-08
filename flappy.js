@@ -95,14 +95,18 @@ let groundOffset = 0;
 
 const scoreEl = document.getElementById('score');
 const stateEl = document.getElementById('state');
-const startBtn = document.getElementById('startBtn');
+// scoreboard in the header replaces the old start button
+const scoreBoard = document.getElementById('scoreBoard');
+const bestEl = document.getElementById('best');
 
 function resetGame(){
   bird.x = 80; bird.y = H/2 - bird.h/2; bird.vy = 0; bird.rotation = 0;
   pipes = [];
   frames = 0; score = 0; running = true; gameOver = false;
   deathAnim = false;
-  stateEl.textContent = 'State: Playing';
+  if (stateEl) stateEl.textContent = 'State: Playing';
+  if (scoreEl) scoreEl.textContent = `Score: ${score}`;
+  if (bestEl) bestEl.textContent = `Best: ${best}`;
 }
 
 function spawnPipe(){
@@ -153,8 +157,8 @@ function update(){
       if (!pipes[i].scored && pipes[i].x + PIPE_WIDTH < bird.x) {
         pipes[i].scored = true;
         score++;
-        scoreEl.textContent = `Score: ${score}`;
-        if (score > best) { best = score; localStorage.setItem('flappy_best', best); }
+        if (scoreEl) scoreEl.textContent = `Score: ${score}`;
+        if (score > best) { best = score; localStorage.setItem('flappy_best', best); if (bestEl) bestEl.textContent = `Best: ${best}`; }
       }
 
       // remove off-screen pipes
@@ -197,7 +201,7 @@ function endGame(){
   // give the bird a little nudge downward to start the fall
   bird.vy = 3;
   bird.rotation = 0.2;
-  stateEl.textContent = 'State: Game Over';
+  if (stateEl) stateEl.textContent = 'State: Game Over';
 }
 
 function draw(){
@@ -318,11 +322,15 @@ window.addEventListener('keydown', (e)=>{
   if (e.code === 'Space') { e.preventDefault(); flap(); }
 });
 canvas.addEventListener('click', ()=>flap());
-startBtn.addEventListener('click', ()=>{ resetGame(); });
+if (scoreBoard) {
+  // clicking the scoreboard acts as the restart control
+  scoreBoard.addEventListener('click', ()=>{ resetGame(); });
+}
 
 // start idle loop
-stateEl.textContent = 'State: Ready';
-scoreEl.textContent = `Score: ${score}`;
+if (stateEl) stateEl.textContent = 'State: Ready';
+if (scoreEl) scoreEl.textContent = `Score: ${score}`;
+if (bestEl) bestEl.textContent = `Best: ${best}`;
 loop();
 
 // Wire up tuning UI controls (live)
