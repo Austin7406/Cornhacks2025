@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banana-Rama Ninja</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="lives">Lives: <span id="livesCount">3</span></div>
+        <div id="coins">Coins: <span id="coinsCount">0</span></div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="mainMenu" class="menu">
+        <h1>Banana-Rama Ninja</h1>
+        <button id="startGame">Select Level</button>
+    </div>
+
+    <!-- Level Select Screen -->
+    <div id="level-select-screen" class="menu">
+        <h2>Select Level</h2>
+        <div id="banana-map">
+            <button id="level-1" class="level-icon">1</button>
+            <button id="level-2" class="level-icon">2</button>
+            <button id="level-3" class="level-icon">3</button>
+            <button id="level-4" class="level-icon">4</button>
+            <button id="level-5" class="level-icon">5</button>
+        </div>
+        <button id="backToMain">Back to Main Menu</button>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pauseMenu" class="menu">
+        <h2>Game Paused</h2>
+        <button id="resumeGame">Resume</button>
+        <button id="restartLevel">Restart Level</button>
+        <button id="mainMenuBtn">Main Menu</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="menu">
+        <h2>Game Over</h2>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <button id="retryLevel">Retry Level</button>
+        <button id="gameOverMainMenu">Main Menu</button>
+    </div>
+
+    <!-- Win Screen -->
+    <div id="winScreen" class="menu">
+        <h2>Level Complete!</h2>
+        <p>Score: <span id="winFinalScore">0</span></p>
+        <button id="nextLevel">Next Level</button>
+        <button id="selectLevel">Level Select</button>
+        <button id="winMainMenu">Main Menu</button>
+    </div>
+
+    <!-- Controls Instructions -->
+    <div id="controls" class="menu">
+        <p>Controls:</p>
+        <p>A/D - Move Left/Right</p>
+        <p>W/Space - Jump</p>
+        <p>P/Esc - Pause</p>
+    </div>
+
+    <script src="game.js" defer></script>
+</body>
+</html>
