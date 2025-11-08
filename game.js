@@ -94,27 +94,27 @@ class Game {
             bananaButton.dataset.type = type.name;
             bananaButton.draggable = true;
             bananaButton.addEventListener('dragstart', (e) => {
+                // select this banana type
                 this.selectBananaType(type);
                 e.dataTransfer.setData('text/plain', type.name);
                 e.dataTransfer.effectAllowed = 'copy';
-                
-                // Create a styled clone for the drag image
-                const dragImage = document.createElement('div');
-                dragImage.style.width = '48px';
-                dragImage.style.height = '48px';
-                dragImage.style.backgroundImage = 'url(./Other Miscellaneous Sprites/background_for_BvM.jpg)';
-                dragImage.style.backgroundSize = 'contain';
-                dragImage.style.backgroundRepeat = 'no-repeat';
-                dragImage.style.backgroundPosition = 'center';
-                dragImage.style.position = 'absolute';
-                dragImage.style.left = '-1000px';
-                document.body.appendChild(dragImage);
-                
-                // Use the clone as drag image
-                e.dataTransfer.setDragImage(dragImage, 24, 24);
-                
-                // Clean up the clone after drag starts
-                setTimeout(() => document.body.removeChild(dragImage), 0);
+
+                // Prefer using the existing image inside the banana button as the drag image.
+                const sourceImg = bananaButton.querySelector('img.banana-img');
+                if (sourceImg) {
+                    if (sourceImg.complete && sourceImg.naturalWidth) {
+                        const offsetX = Math.floor((sourceImg.width || 48) / 2);
+                        const offsetY = Math.floor((sourceImg.height || 48) / 2);
+                        try { e.dataTransfer.setDragImage(sourceImg, offsetX, offsetY); } catch (err) { }
+                    } else {
+                        // If image not yet loaded (rare), use a one-time load handler
+                        const onLoad = () => {
+                            try { e.dataTransfer.setDragImage(sourceImg, Math.floor(sourceImg.width / 2) || 24, Math.floor(sourceImg.height / 2) || 24); } catch (err) { }
+                            sourceImg.removeEventListener('load', onLoad);
+                        };
+                        sourceImg.addEventListener('load', onLoad);
+                    }
+                }
             });
             bananaButton.addEventListener('dragend', () => {
                 document.querySelectorAll('.grid-cell').forEach(cell => {
@@ -299,6 +299,8 @@ class Game {
 
     startWave() {
         this.currentWave++;
+        // Update the header wave counter as soon as wave increments
+        this.updateWaveUI();
         if (this.currentWave > this.totalWaves) {
             this.victory();
             return;
@@ -510,6 +512,11 @@ class Game {
 
     updateResources() {
         document.getElementById('resources').textContent = this.resources;
+    }
+
+    updateWaveUI() {
+        const el = document.getElementById('waveCounter');
+        if (el) el.textContent = `${this.currentWave}/${this.totalWaves}`;
     }
     
 
