@@ -6,18 +6,18 @@ const ctx = canvas.getContext('2d');
 const W = canvas.width; const H = canvas.height;
 
 // Game constants
-// Lower gravity for a floatier, slower fall. Increase if you want snappier falls.
-const GRAVITY = 0.25;
-// Flap velocity governs how strong each flap is. Reduce magnitude for smaller jumps.
-const FLAP_VELOCITY = -5.5;
+// Increase physics/game pace: stronger gravity and flaps for a snappier feel
+const GRAVITY = 0.35;
+// Flap velocity governs how strong each flap is.
+const FLAP_VELOCITY = -7.0;
 // Base bird size (collision box and visual size). Reduced slightly to make the game easier.
 const BIRD_WIDTH = 76; // slightly smaller than previous 96
 const BIRD_HEIGHT = 58; // slightly smaller than previous 72
 const PIPE_WIDTH = 60;
 // Variables (adjustable via UI) so you can fine-tune spacing/speed/gap for the larger sprite
 let PIPE_GAP = 160; // vertical gap between pipes (px)
-let PIPE_SPACING = 140; // spacing (frames) between spawns
-let PIPE_SPEED = 2.8; // horizontal speed (px/frame)
+let PIPE_SPACING = 100; // spacing (frames) between spawns (smaller = more frequent)
+let PIPE_SPEED = 5.0; // horizontal speed (px/frame) - faster world movement
 // Ground height in pixels (used for spawn limits and drawing)
 const GROUND_HEIGHT = 60;
 
@@ -83,6 +83,8 @@ let best = parseInt(localStorage.getItem('flappy_best')) || 0;
 let running = false;
 let gameOver = false;
 let deathAnim = false; // while true, animate death fall/rotation
+// Ground scrolling offset for parallax (px)
+let groundOffset = 0;
 
 const scoreEl = document.getElementById('score');
 const stateEl = document.getElementById('state');
@@ -151,6 +153,11 @@ function update(){
       // remove off-screen pipes
       if (pipes[i].x + PIPE_WIDTH < -50) pipes.splice(i,1);
     }
+  }
+
+  // advance ground scroll so it moves exactly with the trunks/pipes (same speed)
+  if (running) {
+    groundOffset = (groundOffset + PIPE_SPEED) % 100000;
   }
 
   // Collision detection (bird vs ground/ceiling)
@@ -224,28 +231,21 @@ function draw(){
   const useDead = gameOver && bananaDeadImg && bananaDeadImg.complete && bananaDeadImg.naturalWidth;
   const imgToDraw = useDead ? bananaDeadImg : bananaImg;
 
-  // Calculate a visual-only offset so the large sprite does not overlap the HUD
-  const HUD_PROTECT = 64; // px from top to protect HUD
-  let drawCenterY = bird.y + bird.h/2;
-  if (drawCenterY - bird.h/2 < HUD_PROTECT) {
-    // push visual center down so sprite doesn't overlap HUD; collision box remains unchanged
-    drawCenterY = HUD_PROTECT + bird.h/2;
-  }
-
+  // Draw the bird exactly at its physics position so visuals match collisions.
   if (imgToDraw && imgToDraw.complete && imgToDraw.naturalWidth) {
     ctx.save();
-    // draw with rotation around visual center
-    ctx.translate(bird.x + bird.w/2, drawCenterY);
+    // draw with rotation around the bird's center (physics-based)
+    ctx.translate(bird.x + bird.w/2, bird.y + bird.h/2);
     ctx.rotate(bird.rotation);
     ctx.drawImage(imgToDraw, -bird.w/2, -bird.h/2, bird.w, bird.h);
     ctx.restore();
   } else {
-    // fallback: yellow ellipse matching the bird size (visual only)
+    // fallback: yellow ellipse matching the bird size
     const rw = bird.w / 2;
     const rh = bird.h / 2;
     ctx.fillStyle = '#FFE135';
     ctx.beginPath();
-    ctx.ellipse(bird.x + bird.w/2, drawCenterY, rw, rh, 0, 0, Math.PI*2);
+    ctx.ellipse(bird.x + bird.w/2, bird.y + bird.h/2, rw, rh, 0, 0, Math.PI*2);
     ctx.fill();
   }
 
@@ -262,10 +262,18 @@ function draw(){
     ctx.fillText('Press Start or Space / Click to play again', W/2, H/2 + 44);
   }
 
-  // draw ground image on top of everything so it looks natural
-  if (grassyImg && grassyImg.complete && grassyImg.naturalWidth) {
-    // stretch ground image to full canvas width
-    ctx.drawImage(grassyImg, 0, H - GROUND_HEIGHT, W, GROUND_HEIGHT);
+  // draw ground image as a horizontally-tiled, non-distorted strip and scroll it for motion
+  if (grassyImg && grassyImg.complete && grassyImg.naturalWidth && grassyImg.naturalHeight) {
+    // compute tile width so the image is scaled to GROUND_HEIGHT without distortion
+    const tileScale = GROUND_HEIGHT / grassyImg.naturalHeight;
+    const tileW = Math.round(grassyImg.naturalWidth * tileScale);
+
+    // start drawing at negative offset so it scrolls smoothly
+    let startX = - (groundOffset % tileW);
+    // draw enough tiles to cover the canvas width
+    for (let x = startX; x < W; x += tileW) {
+      ctx.drawImage(grassyImg, x, H - GROUND_HEIGHT, tileW, GROUND_HEIGHT);
+    }
   } else {
     // fallback: colored ground band
     ctx.fillStyle = '#6b8e23';

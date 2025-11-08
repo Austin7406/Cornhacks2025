@@ -8,8 +8,10 @@
 </head>
 <body>
   <main class="wrap">
-    <h1>Flappy Banana</h1>
-    <p class="hint">Click/tap or press Space to flap. Avoid the trees.</p>
+    <div class="logo-wrap">
+      <img id="gameLogo" src="assets/sprites/logo.png" alt="Flappy Banana" onerror="this.style.display='none'">
+      <button id="startBtn">Start / Restart</button>
+    </div>
 
     <div class="game-area">
       <canvas id="flappyCanvas" width="480" height="640"></canvas>
@@ -19,26 +21,7 @@
       </div>
     </div>
 
-    <div class="controls">
-      <button id="startBtn">Start / Restart</button>
-      <small>Add your banana sprite to <code>assets/sprites/flappy_banana.png</code> (preferred) or <code>assets/sprites/flappy_banana.svg</code> to replace the placeholder.</small>
-
-      <div class="tune">
-        <div class="tune-row">
-          <label>Pipe Gap: <strong id="gapVal">160</strong></label>
-          <input id="gapRange" type="range" min="100" max="260" value="160">
-        </div>
-        <div class="tune-row">
-          <label>Pipe Speed: <strong id="speedVal">2.8</strong></label>
-          <input id="speedRange" type="range" min="1" max="6" step="0.1" value="2.8">
-        </div>
-        <div class="tune-row">
-          <label>Pipe Spacing (frames): <strong id="spacingVal">140</strong></label>
-          <input id="spacingRange" type="range" min="80" max="260" value="140">
-        </div>
-        <small class="tune-note">Adjust these while the game is running to fine-tune difficulty for larger sprites.</small>
-      </div>
-    </div>
+    <!-- controls removed to keep the UI minimal per request -->
 
     <!-- footer removed to keep the UI compact per request -->
   </main>
