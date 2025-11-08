@@ -1,10 +1,10 @@
 // Game Constants and Configuration
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
-const GRAVITY = 0.5;
-const INITIAL_JUMP_FORCE = -12;
-const BOUNCE_FORCE = -20;
-const MOVE_SPEED = 5;
+const GRAVITY = 0.3;
+const INITIAL_JUMP_FORCE = -8;
+const BOUNCE_FORCE = -12;
+const MOVE_SPEED = 3;
 // Player size (doubled from original to make the banana ninja larger)
 const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 80;
@@ -20,11 +20,15 @@ const ctx = canvas.getContext('2d');
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
-// Player sprite images (attempt to load left/right facing sprites)
+// Player sprite images (ground and jumping sprites)
 const playerImgLeft = new Image();
-playerImgLeft.src = 'assets/sprites/ninja_banana_left-nobg.png';
+playerImgLeft.src = 'assets/sprites/ninja_banana_left_nobg.png';
 const playerImgRight = new Image();
-playerImgRight.src = 'assets/sprites/ninja_banana_right-nobg.png';
+playerImgRight.src = 'assets/sprites/ninja_banana_right_nobg.png';
+const playerImgLeftJump = new Image();
+playerImgLeftJump.src = 'assets/sprites/ninja_banana_jumping_left.png';
+const playerImgRightJump = new Image();
+playerImgRightJump.src = 'assets/sprites/ninja_banana_jumping_right.png';
 
 // Game Classes
 class Player {
@@ -56,7 +60,7 @@ class Player {
         if (this.x < 0) this.x = 0;
         if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
 
-        // Ground collision
+        // Ground collision (fallback for canvas bottom)
         if (this.y + this.height > canvas.height) {
             this.y = canvas.height - this.height;
             this.velocityY = 0;
@@ -65,18 +69,40 @@ class Player {
     }
 
     draw() {
-        // Try to draw sprite image based on facing direction.
-        // If images aren't available yet, fall back to the simple rectangle drawing.
+        // Check if sprite images are ready
         const imgLeftReady = playerImgLeft && playerImgLeft.complete && playerImgLeft.naturalWidth;
         const imgRightReady = playerImgRight && playerImgRight.complete && playerImgRight.naturalWidth;
+        const imgLeftJumpReady = playerImgLeftJump && playerImgLeftJump.complete && playerImgLeftJump.naturalWidth;
+        const imgRightJumpReady = playerImgRightJump && playerImgRightJump.complete && playerImgRightJump.naturalWidth;
 
-        if (this.facing === 'left' && imgLeftReady) {
-            ctx.drawImage(playerImgLeft, this.x, this.y, this.width, this.height);
-        } else if (this.facing === 'right' && imgRightReady) {
-            ctx.drawImage(playerImgRight, this.x, this.y, this.width, this.height);
-        } else if (imgRightReady) {
-            // default to right-facing if available
-            ctx.drawImage(playerImgRight, this.x, this.y, this.width, this.height);
+        // Choose the appropriate sprite based on facing direction and jumping state
+        let spriteToUse = null;
+        
+        if (this.isJumping || this.velocityY !== 0) {
+            // Player is in the air - use jumping sprites
+            if (this.facing === 'left' && imgLeftJumpReady) {
+                spriteToUse = playerImgLeftJump;
+            } else if (this.facing === 'right' && imgRightJumpReady) {
+                spriteToUse = playerImgRightJump;
+            } else if (imgRightJumpReady) {
+                // Default to right jumping if available
+                spriteToUse = playerImgRightJump;
+            }
+        } else {
+            // Player is on the ground - use regular sprites
+            if (this.facing === 'left' && imgLeftReady) {
+                spriteToUse = playerImgLeft;
+            } else if (this.facing === 'right' && imgRightReady) {
+                spriteToUse = playerImgRight;
+            } else if (imgRightReady) {
+                // Default to right facing if available
+                spriteToUse = playerImgRight;
+            }
+        }
+
+        // Draw the chosen sprite or fallback to rectangle
+        if (spriteToUse) {
+            ctx.drawImage(spriteToUse, this.x, this.y, this.width, this.height);
         } else {
             // Fallback: simple banana rectangle with headband
             ctx.fillStyle = '#FFE135';
@@ -607,7 +633,7 @@ function update() {
             switch(platform.type) {
                 case 'normal':
                     // Land on top of platform
-                    if (player.velocityY > 0 && player.y + player.height - player.velocityY <= platform.y) {
+                    if (player.velocityY >= 0 && player.y < platform.y && player.y + player.height > platform.y) {
                         player.y = platform.y - player.height;
                         player.velocityY = 0;
                         player.isJumping = false;
@@ -616,7 +642,7 @@ function update() {
                     break;
                 case 'bounce':
                     // Bounce only when landing from above
-                    if (player.velocityY > 0 && player.y + player.height - player.velocityY <= platform.y) {
+                    if (player.velocityY >= 0 && player.y < platform.y && player.y + player.height > platform.y) {
                         player.y = platform.y - player.height;
                         player.velocityY = BOUNCE_FORCE;
                         player.isJumping = true;
