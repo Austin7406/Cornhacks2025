@@ -6,18 +6,18 @@ const ctx = canvas.getContext('2d');
 const W = canvas.width; const H = canvas.height;
 
 // Game constants
-// Increase physics/game pace: stronger gravity and flaps for a snappier feel
-const GRAVITY = 0.35;
-// Flap velocity governs how strong each flap is.
-const FLAP_VELOCITY = -7.0;
+// Reduced physics/game pace to make gameplay slower and easier
+const GRAVITY = 0.18; // slower fall
+// Flap velocity governs how strong each flap is; reduce magnitude for gentler jumps
+const FLAP_VELOCITY = -5.0;
 // Base bird size (collision box and visual size). Reduced slightly to make the game easier.
 const BIRD_WIDTH = 76; // slightly smaller than previous 96
 const BIRD_HEIGHT = 58; // slightly smaller than previous 72
 const PIPE_WIDTH = 60;
 // Variables (adjustable via UI) so you can fine-tune spacing/speed/gap for the larger sprite
-let PIPE_GAP = 160; // vertical gap between pipes (px)
-let PIPE_SPACING = 100; // spacing (frames) between spawns (smaller = more frequent)
-let PIPE_SPEED = 5.0; // horizontal speed (px/frame) - faster world movement
+let PIPE_GAP = 180; // vertical gap between pipes (px) — slightly larger for easier gameplay
+let PIPE_SPACING = 160; // spacing (frames) between spawns (larger = less frequent)
+let PIPE_SPEED = 2.2; // horizontal speed (px/frame) - slower world movement
 // Ground height in pixels (used for spawn limits and drawing)
 const GROUND_HEIGHT = 60;
 
@@ -64,6 +64,13 @@ trunkBottomImg.crossOrigin = 'anonymous';
 trunkBottomImg.onload = () => console.log('Loaded trunk bottom:', trunkBottomImg.src);
 trunkBottomImg.onerror = () => console.warn('trunk bottom failed to load:', trunkBottomImg.src);
 trunkBottomImg.src = 'assets/sprites/tree_trunk_bottom.png';
+
+// Game over image
+const gameOverImg = new Image();
+gameOverImg.crossOrigin = 'anonymous';
+gameOverImg.onload = () => console.log('Loaded game over image:', gameOverImg.src);
+gameOverImg.onerror = () => console.warn('game over image failed to load:', gameOverImg.src);
+gameOverImg.src = 'assets/sprites/game_over.png';
 
 // Bird state
 let bird = {
@@ -251,15 +258,26 @@ function draw(){
 
   // If game over, show overlay
   if (gameOver) {
+    // dim
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(0,0,W,H);
-    ctx.fillStyle = '#fff';
-    ctx.font = '28px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Game Over', W/2, H/2 - 20);
-    ctx.font = '18px Arial';
-    ctx.fillText(`Score: ${score}  •  Best: ${best}`, W/2, H/2 + 12);
-    ctx.fillText('Press Start or Space / Click to play again', W/2, H/2 + 44);
+    // draw game over image centered if available
+    if (gameOverImg && gameOverImg.complete && gameOverImg.naturalWidth) {
+      // scale image to fit nicely — max width 70% of canvas, preserve aspect
+      const maxW = W * 0.7;
+      const scale = Math.min(1, maxW / gameOverImg.naturalWidth);
+      const imgW = gameOverImg.naturalWidth * scale;
+      const imgH = gameOverImg.naturalHeight * scale;
+      ctx.drawImage(gameOverImg, (W - imgW)/2, (H - imgH)/2 - 20, imgW, imgH);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.font = '28px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Game Over', W/2, H/2 - 20);
+      ctx.font = '18px Arial';
+      ctx.fillText(`Score: ${score}  •  Best: ${best}`, W/2, H/2 + 12);
+      ctx.fillText('Press Start or Space / Click to play again', W/2, H/2 + 44);
+    }
   }
 
   // draw ground image as a horizontally-tiled, non-distorted strip and scroll it for motion
