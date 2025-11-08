@@ -5,7 +5,7 @@ const GRAVITY = 0.25;
 const FALLING_SPEED = .05; // Controls how fast player falls when in mid-air
 const RISING_SPEED = .05; // Controls how fast player decelerates when jumping up (same as falling speed)
 const INITIAL_JUMP_FORCE = -4; // Adjusted to maintain same jump height with slower rising speed
-const BOUNCE_FORCE = -2.4; // Adjusted proportionally to maintain same bounce height
+const BOUNCE_FORCE = -6.4; // Adjusted proportionally to maintain same bounce height
 const MOVE_SPEED = 2;
 // Player size (doubled from original to make the banana ninja larger)
 const PLAYER_WIDTH = 60;
