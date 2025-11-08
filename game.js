@@ -691,6 +691,8 @@ function update() {
                         gameState = 'GAME_OVER';
                         document.getElementById('gameOverScreen').classList.add('active');
                         document.getElementById('finalScore').textContent = player.score;
+                        // Change button text to indicate full game restart
+                        document.getElementById('retryLevel').textContent = 'Restart Game';
                     } else {
                         player.respawn();
                     }
@@ -814,7 +816,12 @@ document.getElementById('mainMenuBtn').addEventListener('click', () => {
 });
 
 document.getElementById('retryLevel').addEventListener('click', () => {
-    resetLevel();
+    // Reset entire game progression - start from level 1 with no other levels unlocked
+    maxLevelReached = 1;
+    currentLevel = 0;
+    localStorage.setItem('maxLevelReached', 1);
+    resetGame();
+    loadLevel(allLevels[0]); // Load level 1
     gameState = 'PLAYING';
     document.getElementById('gameOverScreen').classList.remove('active');
 });
@@ -949,6 +956,8 @@ function handleCollision(platform) {
                     gameState = 'GAME_OVER';
                     document.getElementById('gameOverScreen').classList.add('active');
                     document.getElementById('finalScore').textContent = player.score;
+                    // Change button text to indicate full game restart
+                    document.getElementById('retryLevel').textContent = 'Restart Game';
                 } else {
                     player.respawn();
                 }
