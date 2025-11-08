@@ -144,6 +144,33 @@ class Coin {
     }
 }
 
+class LifeToken {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 20;
+        this.height = 20;
+        this.collected = false;
+    }
+
+    draw() {
+        if (!this.collected) {
+            // Draw green heart-shaped token
+            ctx.fillStyle = '#00FF00';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw white star/plus in center to indicate extra life
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('+', this.x + this.width/2, this.y + this.height/2);
+        }
+    }
+}
+
 // Level Designs
 const level1Data = {
     platforms: [
@@ -262,6 +289,215 @@ const level5Data = {
 
 const allLevels = [level1Data, level2Data, level3Data, level4Data, level5Data];
 let levelData = allLevels[currentLevel];
+
+// Levels 6-15 (10 new levels)
+const level6Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(100, 480, 80, 20, 'normal'),
+        new Platform(250, 420, 80, 20, 'bounce'),
+        new Platform(400, 360, 80, 20, 'normal'),
+        new Platform(550, 420, 80, 20, 'bounce'),
+        new Platform(700, 360, 80, 20, 'normal'),
+        new Platform(400, 280, 80, 20, 'normal'),
+        new Platform(300, 200, 30, 20, 'obstacle'),
+        new Platform(500, 200, 30, 20, 'obstacle'),
+        new Platform(700, 200, 50, 50, 'goal')
+    ],
+    coins: Array(12).fill(null).map((_, i) => new Coin(50 + i * 65, 150 + Math.sin(i * 0.4) * 150))
+};
+
+const level7Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(100, 450, 100, 20, 'normal'),
+        new Platform(300, 400, 100, 20, 'bounce'),
+        new Platform(500, 350, 100, 20, 'normal'),
+        new Platform(700, 300, 100, 20, 'bounce'),
+        new Platform(500, 250, 100, 20, 'normal'),
+        new Platform(300, 200, 100, 20, 'normal'),
+        new Platform(250, 380, 30, 20, 'obstacle'),
+        new Platform(450, 330, 30, 20, 'obstacle'),
+        new Platform(650, 280, 30, 20, 'obstacle'),
+        new Platform(700, 150, 50, 50, 'goal')
+    ],
+    coins: Array(15).fill(null).map((_, i) => new Coin(100 + i * 50, 200 + Math.cos(i * 0.5) * 200))
+};
+
+const level8Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(50, 480, 80, 20, 'normal'),
+        new Platform(150, 420, 80, 20, 'bounce'),
+        new Platform(250, 370, 80, 20, 'normal'),
+        new Platform(350, 420, 80, 20, 'bounce'),
+        new Platform(450, 370, 80, 20, 'normal'),
+        new Platform(550, 420, 80, 20, 'bounce'),
+        new Platform(650, 370, 80, 20, 'normal'),
+        new Platform(400, 250, 30, 20, 'obstacle'),
+        new Platform(200, 250, 30, 20, 'obstacle'),
+        new Platform(600, 250, 30, 20, 'obstacle'),
+        new Platform(700, 200, 50, 50, 'goal')
+    ],
+    coins: Array(14).fill(null).map((_, i) => new Coin(40 + i * 55, 150 + Math.sin(i * 0.6) * 180)),
+    lifeTokens: [
+        new LifeToken(150, 380)  // On the bounce pad area
+    ]
+};
+
+const level9Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(80, 480, 70, 20, 'normal'),
+        new Platform(200, 430, 70, 20, 'bounce'),
+        new Platform(320, 380, 70, 20, 'normal'),
+        new Platform(440, 430, 70, 20, 'bounce'),
+        new Platform(560, 380, 70, 20, 'normal'),
+        new Platform(680, 430, 70, 20, 'bounce'),
+        new Platform(400, 300, 70, 20, 'normal'),
+        new Platform(150, 350, 30, 20, 'obstacle'),
+        new Platform(350, 350, 30, 20, 'obstacle'),
+        new Platform(550, 350, 30, 20, 'obstacle'),
+        new Platform(700, 200, 50, 50, 'goal')
+    ],
+    coins: Array(16).fill(null).map((_, i) => new Coin(30 + i * 50, 120 + Math.sin(i * 0.7) * 200))
+};
+
+const level10Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(100, 480, 90, 20, 'normal'),
+        new Platform(250, 430, 90, 20, 'bounce'),
+        new Platform(400, 380, 90, 20, 'normal'),
+        new Platform(550, 430, 90, 20, 'bounce'),
+        new Platform(100, 330, 90, 20, 'normal'),
+        new Platform(400, 280, 90, 20, 'bounce'),
+        new Platform(700, 230, 90, 20, 'normal'),
+        new Platform(300, 360, 30, 20, 'obstacle'),
+        new Platform(600, 360, 30, 20, 'obstacle'),
+        new Platform(200, 250, 30, 20, 'obstacle'),
+        new Platform(700, 150, 50, 50, 'goal')
+    ],
+    coins: Array(18).fill(null).map((_, i) => new Coin(60 + i * 45, 100 + Math.sin(i * 0.5) * 250))
+};
+
+const level11Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(100, 470, 100, 20, 'bounce'),
+        new Platform(250, 410, 100, 20, 'normal'),
+        new Platform(400, 470, 100, 20, 'bounce'),
+        new Platform(550, 410, 100, 20, 'normal'),
+        new Platform(700, 470, 100, 20, 'bounce'),
+        new Platform(350, 340, 100, 20, 'normal'),
+        new Platform(200, 280, 100, 20, 'bounce'),
+        new Platform(600, 280, 100, 20, 'bounce'),
+        new Platform(400, 200, 30, 20, 'obstacle'),
+        new Platform(300, 200, 30, 20, 'obstacle'),
+        new Platform(500, 200, 30, 20, 'obstacle'),
+        new Platform(700, 150, 50, 50, 'goal')
+    ],
+    coins: Array(18).fill(null).map((_, i) => new Coin(50 + i * 48, 120 + Math.cos(i * 0.6) * 220))
+};
+
+const level12Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(100, 460, 80, 20, 'bounce'),
+        new Platform(220, 400, 80, 20, 'normal'),
+        new Platform(340, 460, 80, 20, 'bounce'),
+        new Platform(460, 400, 80, 20, 'normal'),
+        new Platform(580, 460, 80, 20, 'bounce'),
+        new Platform(700, 400, 80, 20, 'normal'),
+        new Platform(400, 320, 80, 20, 'bounce'),
+        new Platform(200, 280, 80, 20, 'normal'),
+        new Platform(600, 280, 80, 20, 'normal'),
+        new Platform(250, 360, 30, 20, 'obstacle'),
+        new Platform(550, 360, 30, 20, 'obstacle'),
+        new Platform(700, 150, 50, 50, 'goal')
+    ],
+    coins: Array(20).fill(null).map((_, i) => new Coin(40 + i * 40, 100 + Math.sin(i * 0.4) * 250)),
+    lifeTokens: [
+        new LifeToken(400, 280)
+    ]
+};
+
+const level13Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(80, 470, 100, 20, 'normal'),
+        new Platform(200, 420, 100, 20, 'bounce'),
+        new Platform(320, 370, 100, 20, 'normal'),
+        new Platform(440, 420, 100, 20, 'bounce'),
+        new Platform(560, 370, 100, 20, 'normal'),
+        new Platform(680, 420, 100, 20, 'bounce'),
+        new Platform(300, 290, 100, 20, 'normal'),
+        new Platform(500, 290, 100, 20, 'normal'),
+        new Platform(250, 350, 30, 20, 'obstacle'),
+        new Platform(450, 350, 30, 20, 'obstacle'),
+        new Platform(650, 350, 30, 20, 'obstacle'),
+        new Platform(400, 210, 30, 20, 'obstacle'),
+        new Platform(700, 150, 50, 50, 'goal')
+    ],
+    coins: Array(20).fill(null).map((_, i) => new Coin(30 + i * 42, 80 + Math.sin(i * 0.5) * 280))
+};
+
+const level14Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(100, 460, 100, 20, 'bounce'),
+        new Platform(250, 410, 100, 20, 'normal'),
+        new Platform(400, 460, 100, 20, 'bounce'),
+        new Platform(550, 410, 100, 20, 'normal'),
+        new Platform(700, 460, 100, 20, 'bounce'),
+        new Platform(150, 330, 100, 20, 'normal'),
+        new Platform(400, 330, 100, 20, 'bounce'),
+        new Platform(650, 330, 100, 20, 'normal'),
+        new Platform(300, 260, 100, 20, 'bounce'),
+        new Platform(500, 260, 100, 20, 'normal'),
+        new Platform(200, 390, 30, 20, 'obstacle'),
+        new Platform(500, 390, 30, 20, 'obstacle'),
+        new Platform(250, 300, 30, 20, 'obstacle'),
+        new Platform(600, 300, 30, 20, 'obstacle'),
+        new Platform(700, 150, 50, 50, 'goal')
+    ],
+    coins: Array(22).fill(null).map((_, i) => new Coin(25 + i * 38, 50 + Math.cos(i * 0.5) * 300)),
+    lifeTokens: [
+        new LifeToken(300, 220)
+    ]
+};
+
+const level15Data = {
+    platforms: [
+        new Platform(0, 550, 800, 50, 'normal'),
+        new Platform(100, 460, 100, 20, 'bounce'),
+        new Platform(220, 410, 100, 20, 'normal'),
+        new Platform(340, 460, 100, 20, 'bounce'),
+        new Platform(460, 410, 100, 20, 'normal'),
+        new Platform(580, 460, 100, 20, 'bounce'),
+        new Platform(700, 410, 100, 20, 'normal'),
+        new Platform(180, 340, 100, 20, 'bounce'),
+        new Platform(420, 340, 100, 20, 'bounce'),
+        new Platform(660, 340, 100, 20, 'bounce'),
+        new Platform(300, 260, 100, 20, 'normal'),
+        new Platform(500, 260, 100, 20, 'normal'),
+        new Platform(150, 430, 30, 20, 'obstacle'),
+        new Platform(350, 430, 30, 20, 'obstacle'),
+        new Platform(550, 430, 30, 20, 'obstacle'),
+        new Platform(350, 310, 30, 20, 'obstacle'),
+        new Platform(600, 310, 30, 20, 'obstacle'),
+        new Platform(250, 230, 30, 20, 'obstacle'),
+        new Platform(550, 230, 30, 20, 'obstacle'),
+        new Platform(700, 150, 50, 50, 'goal')
+    ],
+    coins: Array(25).fill(null).map((_, i) => new Coin(20 + i * 35, 40 + Math.sin(i * 0.4) * 320)),
+    lifeTokens: [
+        new LifeToken(420, 300)
+    ]
+};
+
+// Update allLevels to include all 15 levels
+allLevels.push(level6Data, level7Data, level8Data, level9Data, level10Data, level11Data, level12Data, level13Data, level14Data, level15Data);
 
 // Create player instance
 const player = new Player(50, 500);
@@ -385,6 +621,15 @@ function update() {
             document.getElementById('coinsCount').textContent = player.score;
         }
     });
+
+    // Life token collection
+    levelData.lifeTokens?.forEach(token => {
+        if (!token.collected && checkCollision(player, token)) {
+            token.collected = true;
+            player.lives += 1;
+            document.getElementById('livesCount').textContent = player.lives;
+        }
+    });
 }
 
 function draw() {
@@ -398,6 +643,7 @@ function draw() {
     // Draw level elements
     levelData.platforms.forEach(platform => platform.draw());
     levelData.coins.forEach(coin => coin.draw());
+    levelData.lifeTokens?.forEach(token => token.draw());
 
     // Draw player
     player.draw();
@@ -414,22 +660,40 @@ function gameLoop() {
 // Level Management Functions
 function loadLevel(level) {
     levelData = level;
-    resetGame();
+    resetLevel();
     gameState = 'PLAYING';
     document.getElementById('level-select-screen').classList.remove('active');
     document.getElementById('gameCanvas').classList.add('visible');
+    document.getElementById('hud').classList.remove('hidden');
+    // Update level display in HUD
+    document.getElementById('currentLevel').textContent = currentLevel + 1;
 }
 
 function updateLevelSelectUI() {
+    const levelGrid = document.getElementById('level-grid');
+    levelGrid.innerHTML = ''; // Clear existing buttons
+    
     for (let i = 1; i <= allLevels.length; i++) {
-        const levelButton = document.getElementById('level-' + i);
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+        btn.textContent = i;
+        btn.id = 'level-' + i;
+        
         if (i <= maxLevelReached) {
-            levelButton.classList.remove('locked');
-            levelButton.disabled = false;
+            btn.disabled = false;
         } else {
-            levelButton.classList.add('locked');
-            levelButton.disabled = true;
+            btn.disabled = true;
         }
+        
+        btn.addEventListener('click', () => {
+            if (i <= maxLevelReached) {
+                currentLevel = i - 1;
+                loadLevel(allLevels[currentLevel]);
+                document.getElementById('currentLevel').textContent = i;
+            }
+        });
+        
+        levelGrid.appendChild(btn);
     }
 }
 
@@ -438,6 +702,7 @@ document.getElementById('startGame').addEventListener('click', () => {
     gameState = 'LEVEL_SELECT';
     document.getElementById('mainMenu').classList.remove('active');
     document.getElementById('level-select-screen').classList.add('active');
+    document.getElementById('hud').classList.add('hidden');
     updateLevelSelectUI();
 });
 
@@ -447,7 +712,7 @@ document.getElementById('resumeGame').addEventListener('click', () => {
 });
 
 document.getElementById('restartLevel').addEventListener('click', () => {
-    resetGame();
+    resetLevel();
     gameState = 'PLAYING';
     document.getElementById('pauseMenu').classList.remove('active');
 });
@@ -460,7 +725,7 @@ document.getElementById('mainMenuBtn').addEventListener('click', () => {
 });
 
 document.getElementById('retryLevel').addEventListener('click', () => {
-    resetGame();
+    resetLevel();
     gameState = 'PLAYING';
     document.getElementById('gameOverScreen').classList.remove('active');
 });
@@ -484,6 +749,7 @@ if (nextLevelBtn) {
             gameState = 'LEVEL_SELECT';
             document.getElementById('winScreen').classList.remove('active');
             document.getElementById('level-select-screen').classList.add('active');
+            document.getElementById('hud').classList.add('hidden');
             updateLevelSelectUI();
             return;
         }
@@ -498,6 +764,7 @@ if (selectLevelBtn) {
         gameState = 'LEVEL_SELECT';
         document.getElementById('winScreen').classList.remove('active');
         document.getElementById('level-select-screen').classList.add('active');
+        document.getElementById('hud').classList.add('hidden');
         updateLevelSelectUI();
     });
 }
@@ -509,7 +776,45 @@ if (winMainMenuBtn) winMainMenuBtn.addEventListener('click', () => {
     document.getElementById('mainMenu').classList.add('active');
 });
 
+// Victory screen buttons
+const playAgainVictoryBtn = document.getElementById('playAgainVictory');
+const victoryMainMenuBtn = document.getElementById('victoryMainMenu');
+
+if (playAgainVictoryBtn) {
+    playAgainVictoryBtn.addEventListener('click', () => {
+        resetGame();
+        maxLevelReached = 1;
+        localStorage.setItem('maxLevelReached', 1);
+        gameState = 'LEVEL_SELECT';
+        document.getElementById('victoryScreen').classList.remove('active');
+        document.getElementById('level-select-screen').classList.add('active');
+        updateLevelSelectUI();
+    });
+}
+
+if (victoryMainMenuBtn) {
+    victoryMainMenuBtn.addEventListener('click', () => {
+        resetGame();
+        gameState = 'MENU';
+        document.getElementById('victoryScreen').classList.remove('active');
+        document.getElementById('mainMenu').classList.add('active');
+    });
+}
+
+function resetLevel() {
+    // Reset level position and coins, but keep lives
+    player.x = 50;
+    player.y = 500;
+    player.velocityX = 0;
+    player.velocityY = 0;
+    player.checkpointX = 50;
+    player.checkpointY = 500;
+    document.getElementById('coinsCount').textContent = player.score;
+    levelData.coins.forEach(coin => coin.collected = false);
+}
+
 function resetGame() {
+    // Full reset: reset everything including lives (for main menu/new game)
     player.x = 50;
     player.y = 500;
     player.velocityX = 0;
@@ -523,20 +828,11 @@ function resetGame() {
     levelData.coins.forEach(coin => coin.collected = false);
 }
 
-// Initialize level selection buttons
-for (let i = 1; i <= allLevels.length; i++) {
-    document.getElementById('level-' + i).addEventListener('click', () => {
-        if (i <= maxLevelReached) {
-            currentLevel = i - 1;
-            loadLevel(allLevels[currentLevel]);
-        }
-    });
-}
-
 document.getElementById('backToMain').addEventListener('click', () => {
     gameState = 'MENU';
     document.getElementById('level-select-screen').classList.remove('active');
     document.getElementById('mainMenu').classList.add('active');
+    document.getElementById('hud').classList.remove('hidden');
 });
 
 // Update collision handling for bounce pads and level completion
@@ -588,9 +884,9 @@ function handleCollision(platform) {
 
 // Initialize game (ensure DOM loaded)
 function initGame() {
-    // Show level select on startup
-    document.getElementById('level-select-screen').classList.add('active');
-    document.getElementById('mainMenu').classList.remove('active');
+    // Show main menu on startup
+    document.getElementById('mainMenu').classList.add('active');
+    document.getElementById('level-select-screen').classList.remove('active');
     // Hide other overlays just in case
     ['pauseMenu','gameOverScreen','winScreen'].forEach(id => {
         const el = document.getElementById(id);
@@ -598,8 +894,9 @@ function initGame() {
     });
     // Hide canvas until gameplay starts
     document.getElementById('gameCanvas').classList.remove('visible');
-    gameState = 'LEVEL_SELECT';
-    updateLevelSelectUI();
+    // Hide HUD on startup (will show when playing)
+    document.getElementById('hud').classList.add('hidden');
+    gameState = 'MENU';
     gameLoop();
 }
 
@@ -617,16 +914,22 @@ function onWin() {
         maxLevelReached = currentLevel + 1;
         localStorage.setItem('maxLevelReached', maxLevelReached);
     }
-    // Update UI
-    const win = document.getElementById('winScreen');
-    win.classList.add('active');
-    document.getElementById('winFinalScore').textContent = player.score;
-    // Toggle next level button visibility
-    const nextBtn = document.getElementById('nextLevel');
-    if (nextBtn) {
-        if (currentLevel >= allLevels.length - 1) {
-            nextBtn.style.display = 'none';
-        } else {
+    
+    // Check if all levels are completed
+    if (currentLevel >= allLevels.length - 1) {
+        // Show victory screen
+        gameState = 'VICTORY';
+        document.getElementById('gameCanvas').classList.remove('visible');
+        document.getElementById('victoryScreen').classList.add('active');
+        document.getElementById('totalCoins').textContent = player.score;
+    } else {
+        // Show level complete screen
+        const win = document.getElementById('winScreen');
+        win.classList.add('active');
+        document.getElementById('levelCompleted').textContent = currentLevel + 1;
+        document.getElementById('winFinalScore').textContent = player.score;
+        const nextBtn = document.getElementById('nextLevel');
+        if (nextBtn) {
             nextBtn.style.display = 'block';
         }
     }
