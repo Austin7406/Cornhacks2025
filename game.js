@@ -35,6 +35,16 @@ playerImgLeftJump.src = 'assets/sprites/ninja_banana_jumping_left.png';
 const playerImgRightJump = new Image();
 playerImgRightJump.src = 'assets/sprites/ninja_banana_jumping_right.png';
 
+// Platform sprite images
+const bouncePadImg = new Image();
+bouncePadImg.src = 'assets/sprites/bounce_pad.png';
+const grassyGroundImg = new Image();
+grassyGroundImg.src = 'assets/sprites/grassy_ground.png';
+
+// Coin sprite images
+const bananaCoinImg = new Image();
+bananaCoinImg.src = 'assets/sprites/banana_coin.png';
+
 // Game Classes
 class Player {
     constructor(x, y) {
@@ -151,37 +161,69 @@ class Platform {
     }
 
     draw() {
-        switch(this.type) {
-            case 'normal':
-                ctx.fillStyle = '#8B4513'; // Brown for regular platforms
-                break;
-            case 'bounce':
-                ctx.fillStyle = '#FFE135'; // Bright yellow for bounce pads
-                break;
-            case 'obstacle':
-                ctx.fillStyle = '#FF0000'; // Red for obstacles
-                break;
-            case 'goal':
-                ctx.fillStyle = '#00FF00'; // Green for goal
-                break;
-        }
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // Draw spring coils for bounce pads to make them visually distinct
         if (this.type === 'bounce') {
-            ctx.strokeStyle = '#CC8B00';
-            ctx.lineWidth = 2;
-            const coilCount = 3;
-            const coilSpacing = this.height / (coilCount + 1);
-            
-            for (let i = 1; i <= coilCount; i++) {
-                const y = this.y + (coilSpacing * i);
-                // Draw wavy lines to represent springs
-                ctx.beginPath();
-                ctx.moveTo(this.x + 5, y);
-                ctx.quadraticCurveTo(this.x + this.width / 2, y - 4, this.x + this.width - 5, y);
-                ctx.stroke();
+            // Use bounce pad sprite if available, otherwise fallback to yellow rectangle
+            if (bouncePadImg && bouncePadImg.complete && bouncePadImg.naturalWidth) {
+                ctx.drawImage(bouncePadImg, this.x, this.y, this.width - 5, this.height + 30);
+            } else {
+                // Fallback: yellow rectangle with spring coils
+                ctx.fillStyle = '#FFE135';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.strokeStyle = '#CC8B00';
+                ctx.lineWidth = 2;
+                const coilCount = 3;
+                const coilSpacing = this.height / (coilCount + 1);
+                
+                for (let i = 1; i <= coilCount; i++) {
+                    const y = this.y + (coilSpacing * i);
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 5, y);
+                    ctx.quadraticCurveTo(this.x + this.width / 2, y - 4, this.x + this.width - 5, y);
+                    ctx.stroke();
+                }
             }
+        } else if (this.type === 'normal') {
+            // Only use grassy ground sprite for actual ground platforms (y=550)
+            if (this.y === 550 && grassyGroundImg && grassyGroundImg.complete && grassyGroundImg.naturalWidth) {
+                const tileWidth = grassyGroundImg.naturalWidth;
+                const tileHeight = grassyGroundImg.naturalHeight;
+                
+                // Calculate how many tiles we need horizontally
+                const tilesX = Math.ceil(this.width / tileWidth);
+                const tilesY = Math.ceil(this.height / tileHeight);
+                
+                // Draw tiled pattern
+                for (let i = 0; i < tilesX; i++) {
+                    for (let j = 0; j < tilesY; j++) {
+                        const tileX = this.x + (i * tileWidth);
+                        const tileY = this.y + (j * tileHeight);
+                        
+                        // Calculate the width and height of this tile (might be clipped at edges)
+                        const drawWidth = Math.min(tileWidth, this.x + this.width - tileX);
+                        const drawHeight = Math.min(tileHeight, this.y + this.height - tileY);
+                        
+                        // Only draw if the tile is within bounds
+                        if (drawWidth > 0 && drawHeight > 0) {
+                            ctx.drawImage(grassyGroundImg, 0, 0, drawWidth, drawHeight, tileX, tileY, drawWidth, drawHeight);
+                        }
+                    }
+                }
+            } else {
+                // Regular platforms (jumping platforms) - use solid green color
+                ctx.fillStyle = '#4CAF50';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        } else {
+            // Draw other platform types normally
+            switch(this.type) {
+                case 'obstacle':
+                    ctx.fillStyle = '#FF0000'; // Red for obstacles
+                    break;
+                case 'goal':
+                    ctx.fillStyle = '#00FF00'; // Green for goal
+                    break;
+            }
+            ctx.fillRect(this.x, this.y, this.width, this.height);
         }
 
         // Draw collision box for debugging
@@ -193,20 +235,26 @@ class Coin {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.width = 15;
-        this.height = 15;
+        this.width = 20;
+        this.height = 20;
         this.collected = false;
     }
 
     draw() {
         if (!this.collected) {
-            ctx.fillStyle = '#FFD700';
-            ctx.beginPath();
-            ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
-            ctx.fill();
+            // Use banana coin sprite if available, otherwise fallback to gold circle
+            if (bananaCoinImg && bananaCoinImg.complete && bananaCoinImg.naturalWidth) {
+                ctx.drawImage(bananaCoinImg, this.x, this.y, this.width + 10, this.height + 10);
+            } else {
+                // Fallback: gold circle
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             // Draw collision box for debugging
-            drawCollisionBox(this.x, this.y, this.width, this.height);
+            drawCollisionBox(this.x, this.y, this.width + 5, this.height + 5);
         }
     }
 }
