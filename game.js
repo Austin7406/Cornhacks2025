@@ -18,20 +18,19 @@ class Game {
         this.spawnInterval = 3000; // Time between monkey spawns in ms
         // Monkey type definitions (sprite name, stat multipliers, spawn weights)
         this.monkeyTypes = [
-            { name: 'Chimp', sprite: 'chimp.png', speedMultiplier: 1.0, healthMultiplier: 1.0, baseWeight: 60, growth: 0.2, healthRamp: 10 },
-            { name: 'Lemur', sprite: 'lemur.png', speedMultiplier: 1.6, healthMultiplier: 0.6, baseWeight: 25, growth: 0.15, healthRamp: 6 },
-            { name: 'Gorilla', sprite: 'gorilla.png', speedMultiplier: 0.6, healthMultiplier: 2.2, baseWeight: 15, growth: 0.25, healthRamp: 18 }
+            { name: 'Chimp', sprite: 'chimp.png', speedMultiplier: 1.0, healthMultiplier: 1.0, baseWeight: 60, growth: 0.2, healthRamp: 5 },
+            { name: 'Lemur', sprite: 'lemur.png', speedMultiplier: 1.6, healthMultiplier: 0.6, baseWeight: 25, growth: 0.15, healthRamp: 3 },
+            { name: 'Gorilla', sprite: 'gorilla.png', speedMultiplier: 0.6, healthMultiplier: 2.2, baseWeight: 15, growth: 0.25, healthRamp: 9 }
         ];
         this.init();
     }
 
     init() {
-        // Initialize the grid, UI and start the game loop
+        // Initialize the grid and UI, but don't start game loop yet
         this.createGrid();
         this.createBananaSelection();
         this.updateResources();
         this.updateLives();
-        this.startGameLoop();
     }
 
     createGrid() {
@@ -85,7 +84,11 @@ class Game {
         const bananaTypes = [
             { name: 'Banana Shooter', cost: 20, sprite: 'banana_shooter.png', type: 'regular' },
             { name: 'Triple Banana', cost: 50, sprite: 'triple_banana_shooter.png', type: 'triple' },
-            { name: 'Frozen Banana', cost: 30, sprite: 'frozen_banana.png', type: 'frozen' }
+            { name: 'Frozen Banana', cost: 30, sprite: 'frozen_banana.png', type: 'frozen' },
+            // Rotten Banana: does a small immediate hit and applies damage-over-time
+            { name: 'Rotten Banana', cost: 20, sprite: 'rotten_banana.png', type: 'rotten' },
+            // Banana Peel: causes the first monkey that steps on the tile to slip and die; banana removed after slip
+            { name: 'Banana Peel', cost: 10, sprite: 'banana_peel.png', type: 'peel' }
         ];
 
         bananaTypes.forEach(type => {
@@ -238,8 +241,8 @@ class Game {
         const baseSpeed = 0.05; // cells per tick
         const speed = baseSpeed * type.speedMultiplier * (1 + (this.currentWave - 1) * 0.06);
     const baseHealth = 100;
-    // Increase monkey health multiplicatively by 50% each wave (1.5x per wave)
-    const waveMultiplier = Math.pow(1.5, Math.max(0, this.currentWave - 1));
+    // Increase monkey health multiplicatively by 20% each wave (1.2x per wave)
+    const waveMultiplier = Math.pow(1.2, Math.max(0, this.currentWave - 1));
     const health = Math.round(baseHealth * type.healthMultiplier * waveMultiplier);
 
         const monkey = {
@@ -292,6 +295,91 @@ class Game {
             // Update visual position
             const percentageAcrossCell = (monkey.position - newCol) * 100;
             monkey.element.style.left = `${percentageAcrossCell}%`;
+            // Check for banana peel: if banana exists in this cell and is a peel, monkey slips (slowed) and takes small damage; banana removed
+            try {
+                const cellBanana = this.grid[monkey.row][monkey.col].banana;
+                if (cellBanana && cellBanana.type && cellBanana.type.type === 'peel') {
+                    // Remove banana visual and clear banana reference so only one monkey is affected here
+                    if (cellBanana.element && cellBanana.element.remove) cellBanana.element.remove();
+                    this.grid[monkey.row][monkey.col].banana = null;
+
+                    // Apply slow effect for 2 seconds, small immediate damage, and push back 0.5 tiles
+                    const originalSpeed = monkey.speed;
+                    try {
+                        // increase slow strength by 50% -> from 30% speed to 15% speed
+                        monkey.speed = originalSpeed * 0.15; // slow to 15% speed
+                        // visual cue for slip
+                        monkey.element.style.filter = 'opacity(70%)';
+                    } catch (e) {}
+
+                    // small damage from slip
+                    const slipDamage = 8;
+                    monkey.health -= slipDamage;
+
+                    // Push monkey back by 0.5 tiles (to the right); clamp to grid bounds
+                    try {
+                        monkey.position = Math.min(8, monkey.position + 0.5);
+                        const newColAfterPush = Math.floor(monkey.position);
+                        if (newColAfterPush !== monkey.col) {
+                            // Clear old cell reference
+                            if (this.grid[monkey.row] && this.grid[monkey.row][monkey.col]) {
+                                this.grid[monkey.row][monkey.col].monkey = null;
+                            }
+                            // Move DOM element into the new cell so it visually appears pushed back
+                            if (this.grid[monkey.row] && this.grid[monkey.row][newColAfterPush]) {
+                                this.grid[monkey.row][newColAfterPush].element.appendChild(monkey.element);
+                                this.grid[monkey.row][newColAfterPush].monkey = monkey;
+                            }
+                            monkey.col = newColAfterPush;
+                        }
+                    } catch (e) {}
+
+                    // Restore speed after 2 seconds if monkey still exists
+                    setTimeout(() => {
+                        if (monkey && this.monkeys.includes(monkey)) {
+                            monkey.speed = originalSpeed;
+                            try { monkey.element.style.filter = ''; } catch (e) {}
+                        }
+                    }, 2000);
+
+                    // If monkey dies from the slip damage, remove it now
+                    if (monkey.health <= 0) {
+                        monkey.element.remove();
+                        if (this.grid[monkey.row] && this.grid[monkey.row][monkey.col]) {
+                            this.grid[monkey.row][monkey.col].monkey = null;
+                        }
+                        return false;
+                    }
+                }
+            } catch (e) {
+                // defensive: if grid indexing fails, ignore and continue
+            }
+
+            // Process damage-over-time (DOT) if present
+            if (monkey.dot) {
+                const now = Date.now();
+                // Apply ticks when it's time
+                if (now >= monkey.dot.nextTick) {
+                    monkey.health -= monkey.dot.tickDamage;
+                    monkey.dot.nextTick += monkey.dot.tickInterval;
+                    // If monkey dies from DOT, remove it now
+                    if (monkey.health <= 0) {
+                        monkey.element.remove();
+                        // Clear any reference in grid
+                        if (this.grid[monkey.row] && this.grid[monkey.row][monkey.col]) {
+                            this.grid[monkey.row][monkey.col].monkey = null;
+                        }
+                        return false;
+                    }
+                }
+
+                // End DOT when duration expired
+                if (Date.now() >= monkey.dot.endTime) {
+                    delete monkey.dot;
+                    // restore visual filter if not frozen (frozen overwrites separately)
+                    try { monkey.element.style.filter = ''; } catch (e) {}
+                }
+            }
             
             return true;
         });
@@ -379,6 +467,41 @@ class Game {
         document.body.appendChild(overlay);
     }
 
+    showStartScreen() {
+        // Create start screen overlay
+        const startScreen = document.createElement('div');
+        startScreen.id = 'startScreen';
+        startScreen.className = 'start-screen';
+        
+        // Add background image from /Other Miscellaneous Sprites/banana_monkey_background.jpg
+        startScreen.style.backgroundImage = "url('./Other\\ Miscellaneous\\ Sprites/banana_monkey_background.jpg')";
+        startScreen.style.backgroundSize = 'cover';
+        startScreen.style.backgroundPosition = 'center';
+        
+        // Add play button
+        const playButton = document.createElement('button');
+        playButton.id = 'playButton';
+        playButton.className = 'play-button';
+        playButton.textContent = 'Play Game';
+        
+        startScreen.appendChild(playButton);
+        document.body.appendChild(startScreen);
+        
+        // Wire up play button
+        playButton.addEventListener('click', () => this.startGame());
+    }
+
+    startGame() {
+        // Hide start screen
+        const startScreen = document.getElementById('startScreen');
+        if (startScreen) {
+            startScreen.style.display = 'none';
+        }
+        
+        // Start the game loop
+        this.startGameLoop();
+    }
+
     startGameLoop() {
         let lastUpdate = Date.now();
         this.startWave(); // Start first wave
@@ -423,6 +546,8 @@ class Game {
                     const cell = this.grid[row][col];
                     if (cell.banana) {
                         const currentTime = Date.now();
+                        // Peel is a placeable trap and should not fire projectiles
+                        if (cell.banana.type && cell.banana.type.type === 'peel') continue;
                         const cooldown = cell.banana.type.type === 'triple' ? 3000 : 2000; // Longer cooldown for triple
                         if (currentTime - cell.banana.lastShot >= cooldown) {
                             // Find closest monkey in the row
@@ -474,39 +599,26 @@ class Game {
     gameOver() {
         // stop loop
         if (this.gameLoop) clearInterval(this.gameLoop);
-        // show overlay
+        
+        // Create game over screen with the game_over.png image
         const overlay = document.createElement('div');
-        overlay.className = 'game-over-overlay';
-        overlay.style.position = 'fixed';
-        overlay.style.left = '0';
-        overlay.style.top = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.background = 'rgba(0,0,0,0.6)';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.zIndex = '9999';
-
-        const box = document.createElement('div');
-        box.style.background = 'white';
-        box.style.padding = '20px 30px';
-        box.style.borderRadius = '8px';
-        box.style.textAlign = 'center';
-
-        const h = document.createElement('h2');
-        h.textContent = 'Game Over';
-        const p = document.createElement('p');
-        p.textContent = 'All lives lost.';
-        const btn = document.createElement('button');
-        btn.textContent = 'Restart';
-        btn.style.marginTop = '12px';
-        btn.addEventListener('click', () => location.reload());
-
-        box.appendChild(h);
-        box.appendChild(p);
-        box.appendChild(btn);
-        overlay.appendChild(box);
+        overlay.className = 'game-over-screen';
+        
+        // Add the game over image
+        const gameOverImage = document.createElement('img');
+        gameOverImage.src = './Other Miscellaneous Sprites/game_over.png';
+        gameOverImage.className = 'game-over-image';
+        
+        // Add restart button below the image
+        const restartButton = document.createElement('button');
+        restartButton.className = 'play-button';
+        restartButton.textContent = 'Play Again';
+        restartButton.style.position = 'absolute';
+        restartButton.style.bottom = '20%';
+        restartButton.addEventListener('click', () => location.reload());
+        
+        overlay.appendChild(gameOverImage);
+        overlay.appendChild(restartButton);
         document.body.appendChild(overlay);
     }
 
@@ -620,6 +732,12 @@ class Game {
         // Choose projectile image based on banana type
         if (banana.type.type === 'frozen') {
             projectile.style.backgroundImage = `url('./Other Miscellaneous Sprites/frozen_projectile.png')`;
+        } else if (banana.type.type === 'rotten') {
+            // Rotten uses its own projectile image
+            projectile.style.backgroundImage = `url('./Other Miscellaneous Sprites/rotten_projectile.png')`;
+            // slightly smaller visual for rotten projectile
+            projectile.style.width = (size * 0.75) + 'px';
+            projectile.style.height = (size * 0.75) + 'px';
         } else {
             // regular and triple use banana projectile image (use banana_shooter sprite as projectile)
             projectile.style.backgroundImage = `url('./Other Miscellaneous Sprites/banana_projectile.png')`;
@@ -648,7 +766,8 @@ class Game {
             startY: startTop,
             targetMonkey: targetMonkey,
             speed: banana.type.type === 'triple' ? 350 : 300,
-            damage: banana.type.type === 'triple' ? 20 : 30,
+            // Rotten deals half the regular banana damage immediately
+            damage: banana.type.type === 'triple' ? 20 : (banana.type.type === 'rotten' ? 15 : 30),
             effect: banana.type.type
         };
     }
@@ -693,6 +812,27 @@ class Game {
                     }, 2000);
                 } else if (projectile.effect === 'triple') {
                     projectile.targetMonkey.health -= 10; // Additional damage for triple burst
+                } else if (projectile.effect === 'rotten') {
+                    // Apply damage-over-time: small ticks over a duration
+                    const now = Date.now();
+                    const dotDuration = 5000; // 5 seconds
+                    const tickInterval = 1000; // 1s per tick
+                    const tickDamage = 3; // damage per tick (total DOT = 15)
+
+                    if (!projectile.targetMonkey.dot) {
+                        projectile.targetMonkey.dot = {
+                            endTime: now + dotDuration,
+                            tickInterval: tickInterval,
+                            nextTick: now + tickInterval,
+                            tickDamage: tickDamage
+                        };
+                    } else {
+                        // Refresh/extend DOT on re-hit
+                        projectile.targetMonkey.dot.endTime = now + dotDuration;
+                        projectile.targetMonkey.dot.nextTick = now + tickInterval;
+                    }
+                    // Visual tint to indicate rotten damage-over-time
+                    try { projectile.targetMonkey.element.style.filter = 'hue-rotate(-30deg) saturate(0.8)'; } catch (e) {}
                 }
 
                 if (projectile.targetMonkey.health <= 0) {
@@ -718,7 +858,21 @@ class Game {
     }
 }
 
-// Start the game when the page loads
+// Initialize the game when the page loads, but wait for Play button click
 window.addEventListener('load', () => {
     const game = new Game();
+    
+    // Wire up the play button to start the game
+    const playButton = document.getElementById('playButton');
+    const startScreen = document.getElementById('startScreen');
+    
+    if (playButton && startScreen) {
+        playButton.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            game.startGameLoop();
+        });
+    } else {
+        // Fallback: start immediately if elements aren't found
+        game.startGameLoop();
+    }
 });
