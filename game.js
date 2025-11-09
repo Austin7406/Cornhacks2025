@@ -842,37 +842,78 @@ function showLifeLostPopup() {
     popup.className = 'life-lost-popup';
     popup.innerHTML = '-1 Life ❤️';
     
-    // Position popup near the player
+    // Position popup in center of screen
     popup.style.cssText = `
-        position: absolute;
-        left: ${player.x + player.width/2}px;
-        top: ${player.y - 20}px;
-        transform: translateX(-50%);
+        position: fixed;
+        left: 50%;
+        top: 40%;
+        transform: translate(-50%, -50%);
         background: linear-gradient(135deg, #ff4757, #ff3742);
         color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
+        padding: 20px 40px;
+        border-radius: 25px;
         font-weight: bold;
-        font-size: 16px;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-        box-shadow: 0 4px 12px rgba(255, 71, 87, 0.6);
-        border: 2px solid #ff6b7a;
-        z-index: 1000;
+        font-size: 32px;
+        text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+        box-shadow: 0 8px 25px rgba(255, 71, 87, 0.8);
+        border: 3px solid #ff6b7a;
+        z-index: 2000;
         pointer-events: none;
-        animation: lifeLostAnimation 1.5s ease-out forwards;
+        animation: lifeLostAnimation 2s ease-out forwards;
         font-family: Arial, sans-serif;
+        text-align: center;
+        min-width: 200px;
     `;
     
-    // Add to game canvas container
-    const canvasContainer = document.getElementById('gameCanvas').parentElement;
-    canvasContainer.appendChild(popup);
+    // Add to body for fixed positioning
+    document.body.appendChild(popup);
     
     // Remove popup after animation completes
     setTimeout(() => {
         if (popup.parentNode) {
             popup.parentNode.removeChild(popup);
         }
-    }, 1500);
+    }, 2000);
+}
+
+function showLifeGainedPopup() {
+    // Create life gained popup element
+    const popup = document.createElement('div');
+    popup.className = 'life-gained-popup';
+    popup.innerHTML = '+1 Life 💚';
+    
+    // Position popup in center of screen
+    popup.style.cssText = `
+        position: fixed;
+        left: 50%;
+        top: 40%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #2ed573, #1e824c);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 25px;
+        font-weight: bold;
+        font-size: 32px;
+        text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+        box-shadow: 0 8px 25px rgba(46, 213, 115, 0.8);
+        border: 3px solid #26de81;
+        z-index: 2000;
+        pointer-events: none;
+        animation: lifeGainedAnimation 2s ease-out forwards;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        min-width: 200px;
+    `;
+    
+    // Add to body for fixed positioning
+    document.body.appendChild(popup);
+    
+    // Remove popup after animation completes
+    setTimeout(() => {
+        if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+        }
+    }, 2000);
 }
 
 function checkUltimateAchievement() {
@@ -1164,6 +1205,15 @@ function update() {
             token.collected = true;
             player.lives += 1;
             document.getElementById('livesCount').textContent = player.lives;
+            
+            // Show life gained popup
+            showLifeGainedPopup();
+            
+            // Remove low-lives warning if applicable
+            const livesElement = document.getElementById('lives');
+            if (player.lives > 1) {
+                livesElement.classList.remove('low-lives');
+            }
         }
     });
 }
@@ -1248,66 +1298,115 @@ function updateLevelSelectUI() {
         levelGrid.appendChild(btn);
     }
     
-    // Add hidden levels arrow if ultimate ninja is unlocked
+    // Add hidden levels button if ultimate ninja is unlocked
     const ultimateUnlocked = localStorage.getItem('ultimateNinjaUnlocked') === 'true';
-    const existingArrow = document.getElementById('hiddenLevelsArrow');
+    const existingButton = document.getElementById('hiddenLevelsButton');
+    const backToMainBtn = document.getElementById('backToMain');
     
-    if (ultimateUnlocked && !existingArrow) {
-        const arrowContainer = document.createElement('div');
-        arrowContainer.id = 'hiddenLevelsArrow';
-        arrowContainer.innerHTML = `
-            <div class="secret-arrow">
-                <div class="arrow-text">Secret Levels</div>
-                <div class="arrow-icon">➤</div>
-            </div>
-        `;
-        arrowContainer.style.cssText = `
+    if (ultimateUnlocked && !existingButton && backToMainBtn) {
+        // Create the secret levels button
+        const secretButton = document.createElement('button');
+        secretButton.id = 'hiddenLevelsButton';
+        secretButton.innerHTML = '🌟 Secret Levels 🌟';
+        secretButton.className = 'secret-levels-btn';
+        
+        // Create a container for both buttons
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'bottom-buttons-container';
+        buttonContainer.style.cssText = `
             position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            animation: pulseGlow 2s infinite;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 60px;
+            align-items: center;
         `;
         
-        arrowContainer.addEventListener('click', showHiddenLevelsMenu);
-        document.getElementById('level-select-screen').appendChild(arrowContainer);
+        // Clone the back button and style both buttons
+        const newBackButton = backToMainBtn.cloneNode(true);
+        newBackButton.id = 'backToMainNew';
         
-        // Add CSS animation for the glowing effect
-        if (!document.getElementById('hiddenLevelsCSS')) {
+        // Style the secret button
+        secretButton.style.cssText = `
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            animation: pulseGlow 2s infinite;
+            min-width: 160px;
+        `;
+        
+        // Style the back button to match
+        newBackButton.style.cssText = `
+            background: linear-gradient(135deg, #666, #555);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            min-width: 160px;
+        `;
+        
+        // Add hover effects via CSS
+        if (!document.getElementById('bottomButtonsCSS')) {
             const style = document.createElement('style');
-            style.id = 'hiddenLevelsCSS';
+            style.id = 'bottomButtonsCSS';
             style.textContent = `
-                .secret-arrow {
-                    background: linear-gradient(135deg, #FFD700, #FFA500);
-                    color: #000;
-                    padding: 15px 20px;
-                    border-radius: 25px;
-                    text-align: center;
-                    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-                    border: 2px solid #FFD700;
-                    font-weight: bold;
+                .secret-levels-btn:hover {
+                    background: linear-gradient(135deg, #FFA500, #FFD700) !important;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6) !important;
                 }
                 
-                .arrow-text {
-                    font-size: 14px;
-                    margin-bottom: 5px;
-                }
-                
-                .arrow-icon {
-                    font-size: 20px;
-                    transform: scaleX(1.5);
+                #backToMainNew:hover {
+                    background: linear-gradient(135deg, #777, #666) !important;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
                 }
                 
                 @keyframes pulseGlow {
-                    0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); }
-                    50% { box-shadow: 0 0 25px rgba(255, 215, 0, 1); }
+                    0%, 100% { box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4); }
+                    50% { box-shadow: 0 6px 25px rgba(255, 215, 0, 0.8); }
                 }
             `;
             document.head.appendChild(style);
         }
-    } else if (!ultimateUnlocked && existingArrow) {
-        existingArrow.remove();
+        
+        // Add event listeners
+        secretButton.addEventListener('click', showHiddenLevelsMenu);
+        newBackButton.addEventListener('click', () => {
+            gameState = 'MENU';
+            document.getElementById('level-select-screen').classList.remove('active');
+            document.getElementById('mainMenu').classList.add('active');
+            document.getElementById('hud').classList.remove('hidden');
+        });
+        
+        // Add buttons to container
+        buttonContainer.appendChild(newBackButton);
+        buttonContainer.appendChild(secretButton);
+        
+        // Hide original back button and add new container
+        backToMainBtn.style.display = 'none';
+        document.getElementById('level-select-screen').appendChild(buttonContainer);
+        
+    } else if (!ultimateUnlocked && existingButton) {
+        // Remove secret button and restore original back button
+        const container = document.querySelector('.bottom-buttons-container');
+        if (container) {
+            container.remove();
+            backToMainBtn.style.display = 'block';
+        }
     }
 }
 
@@ -1336,6 +1435,35 @@ document.getElementById('mainMenuBtn').addEventListener('click', () => {
     gameState = 'MENU';
     document.getElementById('pauseMenu').classList.remove('active');
     document.getElementById('mainMenu').classList.add('active');
+});
+
+document.getElementById('resetProgress').addEventListener('click', () => {
+    // Show confirmation dialog
+    const confirmed = confirm('Are you sure you want to reset ALL progress? This will:\n\n• Reset all unlocked levels back to level 1 only\n• Remove the ULTIMATE banana-rama ninja achievement\n• Hide the secret levels button\n• Reset your current game\n\nThis action cannot be undone!');
+    
+    if (confirmed) {
+        // Clear all localStorage data
+        localStorage.removeItem('maxLevelReached');
+        localStorage.removeItem('ultimateNinjaUnlocked');
+        
+        // Reset game variables
+        maxLevelReached = 1;
+        currentLevel = 0;
+        
+        // Reset game state
+        resetGame();
+        resetTimer();
+        
+        // Go back to main menu
+        gameState = 'MENU';
+        document.getElementById('pauseMenu').classList.remove('active');
+        document.getElementById('mainMenu').classList.add('active');
+        
+        // Show confirmation message
+        setTimeout(() => {
+            alert('Progress has been reset! You are back to the beginning of your ninja journey. 🥷🍌');
+        }, 500);
+    }
 });
 
 document.getElementById('retryLevel').addEventListener('click', () => {
