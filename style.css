@@ -420,6 +420,20 @@ body {
     width: 200px;
 }
 
+/* Level Select Buttons */
+.level-select-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.level-select-buttons button {
+    width: 200px;
+    margin: 0;
+}
+
 /* Menu States */
 .menu.active {
     display: block;
@@ -603,7 +617,7 @@ body {
 
 .table-header, .table-row {
     display: grid;
-    grid-template-columns: 60px 2fr 1fr 1fr 1fr;
+    grid-template-columns: 60px 2fr 1fr 1fr 80px 1fr;
     gap: 15px;
     padding: 12px 15px;
     border-radius: 8px;
@@ -641,7 +655,23 @@ body {
     background: linear-gradient(135deg, rgba(155, 89, 182, 0.3), rgba(187, 119, 214, 0.4));
 }
 
-.rank-col, .stat-col, .date-col {
+.table-row.ultimate-ninja {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 237, 74, 0.3));
+    border-color: #ffd700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.table-row.ultimate-ninja:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 237, 74, 0.4));
+}
+
+.table-row.ultimate-ninja.current-player {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(155, 89, 182, 0.25));
+    border: 2px solid #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 0 15px rgba(155, 89, 182, 0.2);
+}
+
+.rank-col, .stat-col, .ninja-col, .date-col {
     text-align: center;
 }
 
@@ -698,10 +728,16 @@ body {
     }
     
     .table-header, .table-row {
-        grid-template-columns: 50px 2fr 1fr 1fr 1fr;
+        grid-template-columns: 50px 2fr 1fr 1fr 60px 1fr;
         gap: 8px;
         padding: 8px 10px;
         font-size: 10px;
+    }
+    
+    .level-select-buttons {
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
     }
     
     .filter-btn, .change-name-btn {

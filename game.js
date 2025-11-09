@@ -12,7 +12,7 @@ const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 80;
 
 // Debug Settings
-const SHOW_COLLISION_BOXES = true; // Set to true to show red collision boxes for testing
+const SHOW_COLLISION_BOXES = false; // Set to true to show red collision boxes for testing
 
 // Game State Management
 let gameState = 'MENU'; // MENU, LEVEL_SELECT, PLAYING, PAUSED, GAME_OVER, WIN
@@ -23,6 +23,8 @@ let maxLevelReached = parseInt(localStorage.getItem('maxLevelReached')) || 1;
 let gameStartTime = null;
 let totalGameTime = 0;
 let isTimerRunning = false;
+let pausedTime = 0;
+let pauseStartTime = null;
 
 // User Management System
 let currentPlayerName = localStorage.getItem('playerName') || null;
@@ -757,6 +759,7 @@ document.addEventListener('keydown', (e) => {
         case 'escape':
             if (gameState === 'PLAYING') {
                 gameState = 'PAUSED';
+                pauseTimer();
                 document.getElementById('pauseMenu').classList.add('active');
             }
             break;
@@ -804,7 +807,11 @@ function startTimer() {
 
 function stopTimer() {
     if (isTimerRunning && gameStartTime) {
-        totalGameTime = (Date.now() - gameStartTime) / 1000; // Convert to seconds
+        let finalTime = Date.now() - gameStartTime - pausedTime;
+        if (pauseStartTime) {
+            finalTime -= Date.now() - pauseStartTime;
+        }
+        totalGameTime = finalTime / 1000; // Convert to seconds
         isTimerRunning = false;
     }
 }
@@ -813,6 +820,8 @@ function resetTimer() {
     gameStartTime = null;
     totalGameTime = 0;
     isTimerRunning = false;
+    pausedTime = 0;
+    pauseStartTime = null;
     updateTimerDisplay(); // Update display to show 0:00.00
 }
 
@@ -823,9 +832,26 @@ function formatTime(seconds) {
     return `${minutes}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
 }
 
+function pauseTimer() {
+    if (isTimerRunning && !pauseStartTime) {
+        pauseStartTime = Date.now();
+    }
+}
+
+function resumeTimer() {
+    if (pauseStartTime) {
+        pausedTime += Date.now() - pauseStartTime;
+        pauseStartTime = null;
+    }
+}
+
 function getCurrentElapsedTime() {
     if (isTimerRunning && gameStartTime) {
-        return (Date.now() - gameStartTime) / 1000; // Convert to seconds
+        let elapsed = Date.now() - gameStartTime - pausedTime;
+        if (pauseStartTime) {
+            elapsed -= Date.now() - pauseStartTime;
+        }
+        return elapsed / 1000; // Convert to seconds
     }
     return totalGameTime;
 }
@@ -879,12 +905,16 @@ function updatePlayerNameDisplay() {
 
 // Leaderboard Management Functions
 function addScoreToLeaderboard(playerName, completionTime, totalCoins) {
+    // Check if this is an ultimate ninja achievement
+    const isUltimateNinja = completionTime < 180 && totalCoins >= 100;
+    
     // Add to best time leaderboard
     leaderboardData.bestTime.push({
         name: playerName,
         time: completionTime,
         coins: totalCoins,
-        date: new Date().toLocaleDateString()
+        date: new Date().toLocaleDateString(),
+        isUltimateNinja: isUltimateNinja
     });
     
     // Add to highest coins leaderboard
@@ -892,7 +922,8 @@ function addScoreToLeaderboard(playerName, completionTime, totalCoins) {
         name: playerName,
         time: completionTime,
         coins: totalCoins,
-        date: new Date().toLocaleDateString()
+        date: new Date().toLocaleDateString(),
+        isUltimateNinja: isUltimateNinja
     });
     
     // Sort and keep top 10 for each category
@@ -963,6 +994,7 @@ function displayLeaderboardEntries(filterType) {
                 <span class="name-col">Ninja Name</span>
                 <span class="stat-col">${primaryStat}</span>
                 <span class="stat-col">${secondaryStat}</span>
+                <span class="ninja-col">Ultimate</span>
                 <span class="date-col">Date</span>
             </div>
     `;
@@ -974,13 +1006,15 @@ function displayLeaderboardEntries(filterType) {
         const primaryValue = filterType === 'time' ? formatTime(entry.time) : entry.coins.toLocaleString();
         const secondaryValue = filterType === 'time' ? entry.coins.toLocaleString() : formatTime(entry.time);
         const isCurrentPlayer = entry.name === currentPlayerName;
+        const ultimateStatus = entry.isUltimateNinja ? '🥷⭐' : '';
         
         tableHTML += `
-            <div class="table-row ${isCurrentPlayer ? 'current-player' : ''}">
+            <div class="table-row ${isCurrentPlayer ? 'current-player' : ''} ${entry.isUltimateNinja ? 'ultimate-ninja' : ''}">
                 <span class="rank-col">${rankEmoji} ${rank}</span>
                 <span class="name-col">${entry.name}</span>
                 <span class="stat-col">${primaryValue}</span>
                 <span class="stat-col">${secondaryValue}</span>
+                <span class="ninja-col">${ultimateStatus}</span>
                 <span class="date-col">${entry.date}</span>
             </div>
         `;
@@ -1094,7 +1128,7 @@ function showLifeGainedPopup() {
 
 function checkUltimateAchievement() {
     const completedInUnder3Minutes = totalGameTime < 180; // 3 minutes = 180 seconds
-    const collectedOver100Coins = player.score >= 1000; // 100 coins = 1000 points
+    const collectedOver100Coins = player.score >= 100; // 100 coins = 100 points
     
     if (completedInUnder3Minutes && collectedOver100Coins) {
         // Unlock hidden levels and show achievement message
@@ -1363,7 +1397,7 @@ function update() {
     levelData.coins.forEach(coin => {
         if (!coin.collected && checkCollision(player, coin)) {
             coin.collected = true;
-            player.score += 10;
+            player.score += 1;
             document.getElementById('coinsCount').textContent = player.score;
             
             // Add visual feedback for collecting coin
@@ -1588,26 +1622,27 @@ function updateLevelSelectUI() {
 
 // Menu Button Event Listeners
 document.getElementById('startGame').addEventListener('click', () => {
-    gameState = 'LEVEL_SELECT';
+    currentLevel = 0; // Start at level 1 (index 0)
     document.getElementById('mainMenu').classList.remove('active');
-    document.getElementById('level-select-screen').classList.add('active');
-    document.getElementById('hud').classList.add('hidden');
-    updateLevelSelectUI();
+    loadLevel(allLevels[currentLevel]);
 });
 
 document.getElementById('resumeGame').addEventListener('click', () => {
     gameState = 'PLAYING';
+    resumeTimer();
     document.getElementById('pauseMenu').classList.remove('active');
 });
 
 document.getElementById('restartLevel').addEventListener('click', () => {
     resetLevel();
     gameState = 'PLAYING';
+    resumeTimer();
     document.getElementById('pauseMenu').classList.remove('active');
 });
 
 document.getElementById('levelSelectBtn').addEventListener('click', () => {
     gameState = 'LEVEL_SELECT';
+    resumeTimer(); // Resume timer when leaving pause menu
     document.getElementById('pauseMenu').classList.remove('active');
     document.getElementById('level-select-screen').classList.add('active');
     document.getElementById('gameCanvas').classList.remove('visible');
@@ -1788,6 +1823,10 @@ document.getElementById('backToMain').addEventListener('click', () => {
     document.getElementById('level-select-screen').classList.remove('active');
     document.getElementById('mainMenu').classList.add('active');
     document.getElementById('hud').classList.remove('hidden');
+});
+
+document.getElementById('levelSelectLeaderboardBtn').addEventListener('click', () => {
+    showLeaderboard();
 });
 
 // Update collision handling for bounce pads and level completion
