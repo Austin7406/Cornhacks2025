@@ -2,11 +2,11 @@
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 const GRAVITY = 0.25;
-const FALLING_SPEED = .05; // Controls how fast player falls when in mid-air
-const RISING_SPEED = .05; // Controls how fast player decelerates when jumping up (same as falling speed)
-const INITIAL_JUMP_FORCE = -4; // Adjusted to maintain same jump height with slower rising speed
-const BOUNCE_FORCE = -6.4; // Adjusted proportionally to maintain same bounce height
-const MOVE_SPEED = 1.8;
+const FALLING_SPEED = 0.5; // Controls how fast player falls when in mid-air
+const RISING_SPEED = 0.5; // Controls how fast player decelerates when jumping up (same as falling speed)
+const INITIAL_JUMP_FORCE = -13.5; // Adjusted for proper jump height with normal gravity
+const BOUNCE_FORCE = -18; // Adjusted proportionally to maintain same bounce height
+const MOVE_SPEED = 5;
 // Player size (doubled from original to make the banana ninja larger)
 const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 80;
@@ -1606,11 +1606,13 @@ document.getElementById('restartLevel').addEventListener('click', () => {
     document.getElementById('pauseMenu').classList.remove('active');
 });
 
-document.getElementById('mainMenuBtn').addEventListener('click', () => {
-    resetGame();
-    gameState = 'MENU';
+document.getElementById('levelSelectBtn').addEventListener('click', () => {
+    gameState = 'LEVEL_SELECT';
     document.getElementById('pauseMenu').classList.remove('active');
-    document.getElementById('mainMenu').classList.add('active');
+    document.getElementById('level-select-screen').classList.add('active');
+    document.getElementById('gameCanvas').classList.remove('visible');
+    document.getElementById('hud').classList.add('hidden');
+    updateLevelSelectUI();
 });
 
 document.getElementById('resetProgress').addEventListener('click', () => {
