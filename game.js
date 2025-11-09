@@ -6,7 +6,7 @@ const FALLING_SPEED = .05; // Controls how fast player falls when in mid-air
 const RISING_SPEED = .05; // Controls how fast player decelerates when jumping up (same as falling speed)
 const INITIAL_JUMP_FORCE = -4; // Adjusted to maintain same jump height with slower rising speed
 const BOUNCE_FORCE = -6.4; // Adjusted proportionally to maintain same bounce height
-const MOVE_SPEED = 2;
+const MOVE_SPEED = 1.8;
 // Player size (doubled from original to make the banana ninja larger)
 const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 80;
@@ -18,6 +18,11 @@ const SHOW_COLLISION_BOXES = true; // Set to true to show red collision boxes fo
 let gameState = 'MENU'; // MENU, LEVEL_SELECT, PLAYING, PAUSED, GAME_OVER, WIN
 let currentLevel = 0;
 let maxLevelReached = parseInt(localStorage.getItem('maxLevelReached')) || 1;
+
+// Timer System
+let gameStartTime = null;
+let totalGameTime = 0;
+let isTimerRunning = false;
 
 // Initialize Canvas
 const canvas = document.getElementById('gameCanvas');
@@ -40,10 +45,22 @@ const bouncePadImg = new Image();
 bouncePadImg.src = 'assets/sprites/bounce_pad.png';
 const grassyGroundImg = new Image();
 grassyGroundImg.src = 'assets/sprites/grassy_ground.png';
+const standardPlatformImg = new Image();
+standardPlatformImg.src = 'assets/sprites/standard_platform.png';
+const floatingGoalImg = new Image();
+floatingGoalImg.src = 'assets/sprites/floating_goal.png';
 
 // Coin sprite images
 const bananaCoinImg = new Image();
 bananaCoinImg.src = 'assets/sprites/banana_coin.png';
+
+// Obstacle sprite images
+const spikesImg = new Image();
+spikesImg.src = 'assets/sprites/spikes.png';
+
+// Background images
+const prettySkyBgImg = new Image();
+prettySkyBgImg.src = 'assets/sprites/pretty_sky_bg.png';
 
 // Game Classes
 class Player {
@@ -158,6 +175,19 @@ class Platform {
         this.width = width;
         this.height = height;
         this.type = type;
+        // Hitbox offset - adjusts where collision occurs relative to visual appearance
+        // Positive values move hitbox down from visual top, negative values move it up
+        this.hitboxOffset = (type === 'normal' && y === 550) ? 25 : 0; // Ground platforms have 25px offset
+    }
+    
+    // Get the actual collision boundaries
+    getHitbox() {
+        return {
+            x: this.x,
+            y: this.y + this.hitboxOffset + 6, // Lower hitbox by 6px total
+            width: this.width,
+            height: this.height - this.hitboxOffset - 6 // Reduce height by 6px to maintain bottom position
+        };
     }
 
     draw() {
@@ -209,25 +239,47 @@ class Platform {
                     }
                 }
             } else {
-                // Regular platforms (jumping platforms) - use solid green color
-                ctx.fillStyle = '#4CAF50';
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                // Regular platforms (jumping platforms) - use standard platform sprite
+                if (standardPlatformImg && standardPlatformImg.complete && standardPlatformImg.naturalWidth) {
+                    // Stretch the entire platform image to fit the platform dimensions
+                    ctx.drawImage(standardPlatformImg, this.x, this.y, this.width, this.height);
+                } else {
+                    // Fallback: solid green color
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
             }
         } else {
             // Draw other platform types normally
             switch(this.type) {
                 case 'obstacle':
-                    ctx.fillStyle = '#FF0000'; // Red for obstacles
+                    // Use spikes sprite for obstacles
+                    if (spikesImg && spikesImg.complete && spikesImg.naturalWidth) {
+                        // Stretch the spikes image to fit the obstacle dimensions
+                        ctx.drawImage(spikesImg, this.x, this.y, this.width, this.height);
+                    } else {
+                        // Fallback: red rectangle
+                        ctx.fillStyle = '#FF0000';
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
+                    }
                     break;
                 case 'goal':
-                    ctx.fillStyle = '#00FF00'; // Green for goal
+                    // Use floating flag sprite for goal platforms
+                    if (floatingGoalImg && floatingGoalImg.complete && floatingGoalImg.naturalWidth) {
+                        // Stretch the flag image to fit the goal platform dimensions
+                        ctx.drawImage(floatingGoalImg, this.x, this.y, this.width, this.height);
+                    } else {
+                        // Fallback: green rectangle
+                        ctx.fillStyle = '#00FF00';
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
+                    }
                     break;
             }
-            ctx.fillRect(this.x, this.y, this.width, this.height);
         }
 
-        // Draw collision box for debugging
-        drawCollisionBox(this.x, this.y, this.width, this.height);
+        // Draw collision box for debugging (shows actual hitbox, not visual bounds)
+        const hitbox = this.getHitbox();
+        drawCollisionBox(hitbox.x, hitbox.y, hitbox.width, hitbox.height);
     }
 }
 
@@ -295,19 +347,19 @@ const level1Data = {
         // Ground
         new Platform(0, 550, 800, 50, 'normal'),
         // Tutorial platforms
-        new Platform(100, 450, 100, 20, 'normal'),
-        new Platform(250, 400, 100, 20, 'normal'),
-        new Platform(400, 350, 100, 20, 'normal'),
-        new Platform(550, 300, 100, 20, 'normal'),
+        new Platform(100, 450, 100, 30, 'normal'),
+        new Platform(250, 400, 100, 30, 'normal'),
+        new Platform(400, 350, 100, 30, 'normal'),
+        new Platform(550, 300, 100, 30, 'normal'),
         // Goal platform
-        new Platform(650, 250, 50, 50, 'goal')
+        new Platform(650, 100, 100, 150, 'goal')
     ],
     coins: [
         new Coin(120, 420),
         new Coin(270, 370),
         new Coin(420, 320),
         new Coin(570, 270),
-        new Coin(650, 220)
+        new Coin(600, 280) // Moved away from goal platform
     ]
 };
 
@@ -316,22 +368,29 @@ const level2Data = {
         // Ground
         new Platform(0, 550, 800, 50, 'normal'),
         // Platforms with hazards
-        new Platform(100, 450, 150, 20, 'normal'),
-        new Platform(350, 400, 150, 20, 'normal'),
-        new Platform(600, 350, 150, 20, 'normal'),
-        new Platform(350, 300, 150, 20, 'normal'),
-        new Platform(100, 250, 150, 20, 'normal'),
+        new Platform(100, 450, 150, 30, 'normal'),
+        new Platform(350, 400, 150, 30, 'normal'),
+        new Platform(600, 350, 150, 30, 'normal'),
+        new Platform(350, 300, 150, 30, 'normal'),
+        new Platform(100, 250, 150, 30, 'normal'),
         // Hazards
-        new Platform(350, 380, 30, 20, 'obstacle'),
-        new Platform(600, 330, 30, 20, 'obstacle'),
+        new Platform(375, 385, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
+        new Platform(625, 335, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
         // Goal
-        new Platform(100, 200, 50, 50, 'goal')
+        new Platform(100, 50, 100, 150, 'goal')
     ],
-    coins: Array(10).fill(null).map((_, i) => {
-        const x = 100 + (i * 70);
-        const y = 400 - (Math.sin(i * 0.5) * 100);
-        return new Coin(x, y);
-    })
+    coins: [
+        new Coin(220, 420), // Safe positions away from obstacles and goals
+        new Coin(170, 380),
+        new Coin(280, 350),
+        new Coin(450, 380),
+        new Coin(520, 340),
+        new Coin(670, 320),
+        new Coin(180, 270),
+        new Coin(420, 280),
+        new Coin(550, 280),
+        new Coin(720, 300)
+    ]
 };
 
 const level3Data = {
@@ -339,20 +398,27 @@ const level3Data = {
         // Ground
         new Platform(0, 550, 800, 50, 'normal'),
         // Platforms requiring different jump heights
-        new Platform(100, 480, 80, 20, 'normal'),
-        new Platform(250, 450, 80, 20, 'normal'),
-        new Platform(400, 400, 80, 20, 'normal'),
-        new Platform(550, 320, 80, 20, 'normal'),
-        new Platform(400, 240, 80, 20, 'normal'),
-        new Platform(250, 180, 80, 20, 'normal'),
+        new Platform(100, 480, 80, 30, 'normal'),
+        new Platform(250, 450, 80, 30, 'normal'),
+        new Platform(400, 400, 80, 30, 'normal'),
+        new Platform(550, 320, 80, 30, 'normal'),
+        new Platform(400, 240, 80, 30, 'normal'),
+        new Platform(250, 180, 80, 30, 'normal'),
         // Goal
-        new Platform(100, 120, 50, 50, 'goal')
+        new Platform(75, 20, 100, 150, 'goal')
     ],
-    coins: Array(10).fill(null).map((_, i) => {
-        const x = 150 + (i * 60);
-        const y = 300 - (Math.cos(i * 0.7) * 150);
-        return new Coin(x, y);
-    })
+    coins: [
+        new Coin(120, 450), // Safe positions on or near platforms
+        new Coin(270, 420),
+        new Coin(420, 370),
+        new Coin(570, 290),
+        new Coin(420, 210),
+        new Coin(270, 150),
+        new Coin(200, 250),
+        new Coin(500, 350),
+        new Coin(320, 300),
+        new Coin(180, 350)
+    ]
 };
 
 const level4Data = {
@@ -360,22 +426,29 @@ const level4Data = {
         // Ground
         new Platform(0, 550, 800, 50, 'normal'),
         // Platforms with bounce pads
-        new Platform(100, 450, 120, 20, 'normal'),
+        new Platform(100, 450, 120, 30, 'normal'),
         new Platform(300, 500, 120, 20, 'bounce'),
-        new Platform(500, 400, 120, 20, 'normal'),
+        new Platform(500, 400, 120, 30, 'normal'),
         new Platform(700, 500, 120, 20, 'bounce'),
-        new Platform(500, 250, 120, 20, 'normal'),
+        new Platform(500, 250, 120, 30, 'normal'),
         // Hazards
-        new Platform(300, 380, 30, 20, 'obstacle'),
-        new Platform(700, 330, 30, 20, 'obstacle'),
+        new Platform(325, 385, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
+        new Platform(725, 335, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
         // Goal
-        new Platform(700, 200, 50, 50, 'goal')
+        new Platform(675, 50, 100, 150, 'goal')
     ],
-    coins: Array(10).fill(null).map((_, i) => {
-        const x = 100 + (i * 70);
-        const y = 200 + (Math.sin(i * 0.8) * 150);
-        return new Coin(x, y);
-    })
+    coins: [
+        new Coin(120, 420), // Safe positions away from obstacles and goal
+        new Coin(180, 280),
+        new Coin(260, 200),
+        new Coin(350, 300),
+        new Coin(420, 350),
+        new Coin(520, 370),
+        new Coin(580, 220),
+        new Coin(620, 300),
+        new Coin(550, 180),
+        new Coin(450, 150)
+    ]
 };
 
 const level5Data = {
@@ -383,26 +456,38 @@ const level5Data = {
         // Ground
         new Platform(0, 550, 800, 50, 'normal'),
         // Complex platform arrangement
-        new Platform(100, 480, 100, 20, 'normal'),
+        new Platform(100, 480, 100, 30, 'normal'),
         new Platform(300, 450, 100, 20, 'bounce'),
-        new Platform(500, 400, 100, 20, 'normal'),
+        new Platform(500, 400, 100, 30, 'normal'),
         new Platform(700, 350, 100, 20, 'bounce'),
-        new Platform(500, 300, 100, 20, 'normal'),
-        new Platform(300, 250, 100, 20, 'normal'),
+        new Platform(500, 300, 100, 30, 'normal'),
+        new Platform(300, 250, 100, 30, 'normal'),
         new Platform(100, 200, 100, 20, 'bounce'),
         // Hazards
-        new Platform(300, 430, 30, 20, 'obstacle'),
-        new Platform(500, 380, 30, 20, 'obstacle'),
-        new Platform(700, 330, 30, 20, 'obstacle'),
-        new Platform(300, 230, 30, 20, 'obstacle'),
+        new Platform(420, 435, 30, 20, 'obstacle'), // Moved away from bounce pad, floating above normal platform
+        new Platform(525, 385, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
+        new Platform(620, 335, 30, 20, 'obstacle'), // Moved away from bounce pad, floating above normal platform
+        new Platform(325, 235, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
         // Goal
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
-    coins: Array(15).fill(null).map((_, i) => {
-        const x = 100 + (i * 50);
-        const y = 150 + (Math.sin(i * 0.5) * 200);
-        return new Coin(x, y);
-    })
+    coins: [
+        new Coin(120, 450), // Safe positions away from obstacles and goal
+        new Coin(180, 350),
+        new Coin(250, 220),
+        new Coin(350, 420),
+        new Coin(420, 270),
+        new Coin(520, 370),
+        new Coin(570, 220),
+        new Coin(620, 280),
+        new Coin(150, 170),
+        new Coin(320, 180),
+        new Coin(520, 180),
+        new Coin(420, 350),
+        new Coin(580, 350),
+        new Coin(180, 280),
+        new Coin(450, 200)
+    ]
 };
 
 const allLevels = [level1Data, level2Data, level3Data, level4Data, level5Data];
@@ -412,32 +497,45 @@ let levelData = allLevels[currentLevel];
 const level6Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
-        new Platform(100, 480, 80, 20, 'normal'),
+        new Platform(100, 480, 80, 30, 'normal'),
         new Platform(250, 420, 80, 20, 'bounce'),
-        new Platform(400, 360, 80, 20, 'normal'),
+        new Platform(400, 360, 80, 30, 'normal'),
         new Platform(550, 420, 80, 20, 'bounce'),
-        new Platform(700, 360, 80, 20, 'normal'),
-        new Platform(400, 280, 80, 20, 'normal'),
+        new Platform(700, 360, 80, 30, 'normal'),
+        new Platform(400, 280, 80, 30, 'normal'),
         new Platform(300, 200, 30, 20, 'obstacle'),
         new Platform(500, 200, 30, 20, 'obstacle'),
-        new Platform(700, 200, 50, 50, 'goal')
+        new Platform(675, 50, 100, 150, 'goal')
     ],
-    coins: Array(12).fill(null).map((_, i) => new Coin(50 + i * 65, 150 + Math.sin(i * 0.4) * 150))
+    coins: [
+        new Coin(120, 450), // Safe positions away from spikes
+        new Coin(270, 390),
+        new Coin(180, 320),
+        new Coin(420, 330),
+        new Coin(570, 390),
+        new Coin(720, 330),
+        new Coin(420, 250),
+        new Coin(150, 250),
+        new Coin(600, 250),
+        new Coin(80, 400),
+        new Coin(350, 450),
+        new Coin(650, 450)
+    ]
 };
 
 const level7Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
-        new Platform(100, 450, 100, 20, 'normal'),
+        new Platform(100, 450, 100, 30, 'normal'),
         new Platform(300, 400, 100, 20, 'bounce'),
-        new Platform(500, 350, 100, 20, 'normal'),
+        new Platform(500, 350, 100, 30, 'normal'),
         new Platform(700, 300, 100, 20, 'bounce'),
-        new Platform(500, 250, 100, 20, 'normal'),
-        new Platform(300, 200, 100, 20, 'normal'),
+        new Platform(500, 250, 100, 30, 'normal'),
+        new Platform(300, 200, 100, 30, 'normal'),
         new Platform(250, 380, 30, 20, 'obstacle'),
         new Platform(450, 330, 30, 20, 'obstacle'),
         new Platform(650, 280, 30, 20, 'obstacle'),
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
     coins: Array(15).fill(null).map((_, i) => new Coin(100 + i * 50, 200 + Math.cos(i * 0.5) * 200))
 };
@@ -445,17 +543,17 @@ const level7Data = {
 const level8Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
-        new Platform(50, 480, 80, 20, 'normal'),
+        new Platform(50, 480, 80, 30, 'normal'),
         new Platform(150, 420, 80, 20, 'bounce'),
-        new Platform(250, 370, 80, 20, 'normal'),
+        new Platform(250, 370, 80, 30, 'normal'),
         new Platform(350, 420, 80, 20, 'bounce'),
-        new Platform(450, 370, 80, 20, 'normal'),
+        new Platform(450, 370, 80, 30, 'normal'),
         new Platform(550, 420, 80, 20, 'bounce'),
-        new Platform(650, 370, 80, 20, 'normal'),
+        new Platform(650, 370, 80, 30, 'normal'),
         new Platform(400, 250, 30, 20, 'obstacle'),
         new Platform(200, 250, 30, 20, 'obstacle'),
         new Platform(600, 250, 30, 20, 'obstacle'),
-        new Platform(700, 200, 50, 50, 'goal')
+        new Platform(675, 50, 100, 150, 'goal')
     ],
     coins: Array(14).fill(null).map((_, i) => new Coin(40 + i * 55, 150 + Math.sin(i * 0.6) * 180)),
     lifeTokens: [
@@ -466,17 +564,17 @@ const level8Data = {
 const level9Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
-        new Platform(80, 480, 70, 20, 'normal'),
+        new Platform(80, 480, 70, 30, 'normal'),
         new Platform(200, 430, 70, 20, 'bounce'),
-        new Platform(320, 380, 70, 20, 'normal'),
+        new Platform(320, 380, 70, 30, 'normal'),
         new Platform(440, 430, 70, 20, 'bounce'),
-        new Platform(560, 380, 70, 20, 'normal'),
+        new Platform(560, 380, 70, 30, 'normal'),
         new Platform(680, 430, 70, 20, 'bounce'),
-        new Platform(400, 300, 70, 20, 'normal'),
+        new Platform(400, 300, 70, 30, 'normal'),
         new Platform(150, 350, 30, 20, 'obstacle'),
         new Platform(350, 350, 30, 20, 'obstacle'),
         new Platform(550, 350, 30, 20, 'obstacle'),
-        new Platform(700, 200, 50, 50, 'goal')
+        new Platform(675, 50, 100, 150, 'goal')
     ],
     coins: Array(16).fill(null).map((_, i) => new Coin(30 + i * 50, 120 + Math.sin(i * 0.7) * 200))
 };
@@ -484,17 +582,17 @@ const level9Data = {
 const level10Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
-        new Platform(100, 480, 90, 20, 'normal'),
+        new Platform(100, 480, 90, 30, 'normal'),
         new Platform(250, 430, 90, 20, 'bounce'),
-        new Platform(400, 380, 90, 20, 'normal'),
+        new Platform(400, 380, 90, 30, 'normal'),
         new Platform(550, 430, 90, 20, 'bounce'),
-        new Platform(100, 330, 90, 20, 'normal'),
+        new Platform(100, 330, 90, 30, 'normal'),
         new Platform(400, 280, 90, 20, 'bounce'),
-        new Platform(700, 230, 90, 20, 'normal'),
+        new Platform(700, 230, 90, 30, 'normal'),
         new Platform(300, 360, 30, 20, 'obstacle'),
         new Platform(600, 360, 30, 20, 'obstacle'),
         new Platform(200, 250, 30, 20, 'obstacle'),
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
     coins: Array(18).fill(null).map((_, i) => new Coin(60 + i * 45, 100 + Math.sin(i * 0.5) * 250))
 };
@@ -503,17 +601,17 @@ const level11Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
         new Platform(100, 470, 100, 20, 'bounce'),
-        new Platform(250, 410, 100, 20, 'normal'),
+        new Platform(250, 410, 100, 30, 'normal'),
         new Platform(400, 470, 100, 20, 'bounce'),
-        new Platform(550, 410, 100, 20, 'normal'),
+        new Platform(550, 410, 100, 30, 'normal'),
         new Platform(700, 470, 100, 20, 'bounce'),
-        new Platform(350, 340, 100, 20, 'normal'),
+        new Platform(350, 340, 100, 30, 'normal'),
         new Platform(200, 280, 100, 20, 'bounce'),
         new Platform(600, 280, 100, 20, 'bounce'),
         new Platform(400, 200, 30, 20, 'obstacle'),
         new Platform(300, 200, 30, 20, 'obstacle'),
         new Platform(500, 200, 30, 20, 'obstacle'),
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
     coins: Array(18).fill(null).map((_, i) => new Coin(50 + i * 48, 120 + Math.cos(i * 0.6) * 220))
 };
@@ -522,17 +620,17 @@ const level12Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
         new Platform(100, 460, 80, 20, 'bounce'),
-        new Platform(220, 400, 80, 20, 'normal'),
+        new Platform(220, 400, 80, 30, 'normal'),
         new Platform(340, 460, 80, 20, 'bounce'),
-        new Platform(460, 400, 80, 20, 'normal'),
+        new Platform(460, 400, 80, 30, 'normal'),
         new Platform(580, 460, 80, 20, 'bounce'),
-        new Platform(700, 400, 80, 20, 'normal'),
+        new Platform(700, 400, 80, 30, 'normal'),
         new Platform(400, 320, 80, 20, 'bounce'),
-        new Platform(200, 280, 80, 20, 'normal'),
-        new Platform(600, 280, 80, 20, 'normal'),
+        new Platform(200, 280, 80, 30, 'normal'),
+        new Platform(600, 280, 80, 30, 'normal'),
         new Platform(250, 360, 30, 20, 'obstacle'),
         new Platform(550, 360, 30, 20, 'obstacle'),
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
     coins: Array(20).fill(null).map((_, i) => new Coin(40 + i * 40, 100 + Math.sin(i * 0.4) * 250)),
     lifeTokens: [
@@ -543,19 +641,19 @@ const level12Data = {
 const level13Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
-        new Platform(80, 470, 100, 20, 'normal'),
+        new Platform(80, 470, 100, 30, 'normal'),
         new Platform(200, 420, 100, 20, 'bounce'),
-        new Platform(320, 370, 100, 20, 'normal'),
+        new Platform(320, 370, 100, 30, 'normal'),
         new Platform(440, 420, 100, 20, 'bounce'),
-        new Platform(560, 370, 100, 20, 'normal'),
+        new Platform(560, 370, 100, 30, 'normal'),
         new Platform(680, 420, 100, 20, 'bounce'),
-        new Platform(300, 290, 100, 20, 'normal'),
-        new Platform(500, 290, 100, 20, 'normal'),
-        new Platform(250, 350, 30, 20, 'obstacle'),
+        new Platform(300, 290, 100, 30, 'normal'),
+        new Platform(500, 290, 100, 30, 'normal'),
+        new Platform(275, 355, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
         new Platform(450, 350, 30, 20, 'obstacle'),
         new Platform(650, 350, 30, 20, 'obstacle'),
         new Platform(400, 210, 30, 20, 'obstacle'),
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
     coins: Array(20).fill(null).map((_, i) => new Coin(30 + i * 42, 80 + Math.sin(i * 0.5) * 280))
 };
@@ -564,20 +662,20 @@ const level14Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
         new Platform(100, 460, 100, 20, 'bounce'),
-        new Platform(250, 410, 100, 20, 'normal'),
+        new Platform(250, 410, 100, 30, 'normal'),
         new Platform(400, 460, 100, 20, 'bounce'),
-        new Platform(550, 410, 100, 20, 'normal'),
+        new Platform(550, 410, 100, 30, 'normal'),
         new Platform(700, 460, 100, 20, 'bounce'),
-        new Platform(150, 330, 100, 20, 'normal'),
+        new Platform(150, 330, 100, 30, 'normal'),
         new Platform(400, 330, 100, 20, 'bounce'),
-        new Platform(650, 330, 100, 20, 'normal'),
+        new Platform(650, 330, 100, 30, 'normal'),
         new Platform(300, 260, 100, 20, 'bounce'),
-        new Platform(500, 260, 100, 20, 'normal'),
+        new Platform(500, 260, 100, 30, 'normal'),
         new Platform(200, 390, 30, 20, 'obstacle'),
-        new Platform(500, 390, 30, 20, 'obstacle'),
+        new Platform(525, 395, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
         new Platform(250, 300, 30, 20, 'obstacle'),
         new Platform(600, 300, 30, 20, 'obstacle'),
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
     coins: Array(22).fill(null).map((_, i) => new Coin(25 + i * 38, 50 + Math.cos(i * 0.5) * 300)),
     lifeTokens: [
@@ -589,24 +687,24 @@ const level15Data = {
     platforms: [
         new Platform(0, 550, 800, 50, 'normal'),
         new Platform(100, 460, 100, 20, 'bounce'),
-        new Platform(220, 410, 100, 20, 'normal'),
+        new Platform(220, 410, 100, 30, 'normal'),
         new Platform(340, 460, 100, 20, 'bounce'),
-        new Platform(460, 410, 100, 20, 'normal'),
+        new Platform(460, 410, 100, 30, 'normal'),
         new Platform(580, 460, 100, 20, 'bounce'),
-        new Platform(700, 410, 100, 20, 'normal'),
+        new Platform(700, 410, 100, 30, 'normal'),
         new Platform(180, 340, 100, 20, 'bounce'),
         new Platform(420, 340, 100, 20, 'bounce'),
         new Platform(660, 340, 100, 20, 'bounce'),
-        new Platform(300, 260, 100, 20, 'normal'),
-        new Platform(500, 260, 100, 20, 'normal'),
+        new Platform(300, 260, 100, 30, 'normal'),
+        new Platform(500, 260, 100, 30, 'normal'),
         new Platform(150, 430, 30, 20, 'obstacle'),
         new Platform(350, 430, 30, 20, 'obstacle'),
-        new Platform(550, 430, 30, 20, 'obstacle'),
+        new Platform(575, 435, 30, 20, 'obstacle'), // Moved 25px right from edge, up 15px above platform
         new Platform(350, 310, 30, 20, 'obstacle'),
         new Platform(600, 310, 30, 20, 'obstacle'),
         new Platform(250, 230, 30, 20, 'obstacle'),
         new Platform(550, 230, 30, 20, 'obstacle'),
-        new Platform(700, 150, 50, 50, 'goal')
+        new Platform(675, 0, 100, 150, 'goal')
     ],
     coins: Array(25).fill(null).map((_, i) => new Coin(20 + i * 35, 40 + Math.sin(i * 0.4) * 320)),
     lifeTokens: [
@@ -617,8 +715,8 @@ const level15Data = {
 // Update allLevels to include all 15 levels
 allLevels.push(level6Data, level7Data, level8Data, level9Data, level10Data, level11Data, level12Data, level13Data, level14Data, level15Data);
 
-// Create player instance (spawn on top of ground platform at y=550, so player y = 550 - 80 = 470)
-const player = new Player(50, 470);
+// Create player instance (spawn on top of ground hitbox at y=575, so player y = 575 - 80 = 495)
+const player = new Player(50, 495);
 
 // Input Handling
 const keys = {
@@ -681,6 +779,284 @@ function drawCollisionBox(x, y, width, height) {
     }
 }
 
+// Timer Helper Functions
+function startTimer() {
+    if (!isTimerRunning) {
+        gameStartTime = Date.now();
+        isTimerRunning = true;
+    }
+}
+
+function stopTimer() {
+    if (isTimerRunning && gameStartTime) {
+        totalGameTime = (Date.now() - gameStartTime) / 1000; // Convert to seconds
+        isTimerRunning = false;
+    }
+}
+
+function resetTimer() {
+    gameStartTime = null;
+    totalGameTime = 0;
+    isTimerRunning = false;
+    updateTimerDisplay(); // Update display to show 0:00.00
+}
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const milliseconds = Math.floor((seconds % 1) * 100);
+    return `${minutes}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+}
+
+function getCurrentElapsedTime() {
+    if (isTimerRunning && gameStartTime) {
+        return (Date.now() - gameStartTime) / 1000; // Convert to seconds
+    }
+    return totalGameTime;
+}
+
+function updateTimerDisplay() {
+    const timerElement = document.getElementById('timerDisplay');
+    if (timerElement) {
+        const currentTime = getCurrentElapsedTime();
+        timerElement.textContent = formatTime(currentTime);
+    }
+}
+
+function showLevelAnnouncement(levelNumber) {
+    const announcement = document.getElementById('levelAnnouncement');
+    if (announcement) {
+        announcement.textContent = `Level ${levelNumber}`;
+        announcement.style.opacity = '1';
+        
+        // Fade out after 3 seconds
+        setTimeout(() => {
+            announcement.style.opacity = '0';
+        }, 3000);
+    }
+}
+
+function showLifeLostPopup() {
+    // Create life lost popup element
+    const popup = document.createElement('div');
+    popup.className = 'life-lost-popup';
+    popup.innerHTML = '-1 Life ❤️';
+    
+    // Position popup near the player
+    popup.style.cssText = `
+        position: absolute;
+        left: ${player.x + player.width/2}px;
+        top: ${player.y - 20}px;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #ff4757, #ff3742);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 16px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 4px 12px rgba(255, 71, 87, 0.6);
+        border: 2px solid #ff6b7a;
+        z-index: 1000;
+        pointer-events: none;
+        animation: lifeLostAnimation 1.5s ease-out forwards;
+        font-family: Arial, sans-serif;
+    `;
+    
+    // Add to game canvas container
+    const canvasContainer = document.getElementById('gameCanvas').parentElement;
+    canvasContainer.appendChild(popup);
+    
+    // Remove popup after animation completes
+    setTimeout(() => {
+        if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+        }
+    }, 1500);
+}
+
+function checkUltimateAchievement() {
+    const completedInUnder3Minutes = totalGameTime < 180; // 3 minutes = 180 seconds
+    const collectedOver100Coins = player.score >= 1000; // 100 coins = 1000 points
+    
+    if (completedInUnder3Minutes && collectedOver100Coins) {
+        // Unlock hidden levels and show achievement message
+        localStorage.setItem('ultimateNinjaUnlocked', 'true');
+        
+        // Show special achievement message
+        const achievementMsg = document.createElement('div');
+        achievementMsg.id = 'ultimateAchievement';
+        achievementMsg.innerHTML = `
+            <h2>🏆 ULTIMATE BANANA-RAMA NINJA! 🏆</h2>
+            <p>Incredible! You've completed all levels in under 3 minutes with over 100 coins!</p>
+            <p>A surprise is waiting for you in the level select menu...</p>
+        `;
+        achievementMsg.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            border: 3px solid #FFD700;
+            font-family: Arial, sans-serif;
+        `;
+        
+        document.body.appendChild(achievementMsg);
+        
+        // Auto-remove achievement message after 5 seconds
+        setTimeout(() => {
+            if (achievementMsg.parentNode) {
+                achievementMsg.parentNode.removeChild(achievementMsg);
+            }
+        }, 5000);
+    }
+}
+
+function showHiddenLevelsMenu() {
+    // Create hidden levels overlay
+    const hiddenMenu = document.createElement('div');
+    hiddenMenu.id = 'hiddenLevelsMenu';
+    hiddenMenu.innerHTML = `
+        <div class="hidden-menu-content">
+            <h2>🌟 SECRET BANANA REALMS 🌟</h2>
+            <p>You've unlocked the legendary hidden levels!</p>
+            <div class="hidden-levels-grid">
+                <button class="hidden-level-btn" data-level="16">Gravity Chaos</button>
+                <button class="hidden-level-btn" data-level="17">Mirror World</button>
+                <button class="hidden-level-btn" data-level="18">Speed Run Hell</button>
+                <button class="hidden-level-btn" data-level="19">Coin Paradise</button>
+                <button class="hidden-level-btn" data-level="20">The Final Trial</button>
+            </div>
+            <button id="closeHiddenMenu" class="close-btn">Close</button>
+        </div>
+    `;
+    
+    hiddenMenu.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    document.body.appendChild(hiddenMenu);
+    
+    // Add styles for the hidden menu
+    if (!document.getElementById('hiddenMenuCSS')) {
+        const style = document.createElement('style');
+        style.id = 'hiddenMenuCSS';
+        style.textContent = `
+            .hidden-menu-content {
+                background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+                color: #FFD700;
+                padding: 40px;
+                border-radius: 20px;
+                text-align: center;
+                box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+                border: 3px solid #FFD700;
+                max-width: 500px;
+                animation: slideIn 0.5s ease-out;
+            }
+            
+            .hidden-menu-content h2 {
+                margin-bottom: 20px;
+                text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            }
+            
+            .hidden-levels-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 15px;
+                margin: 30px 0;
+            }
+            
+            .hidden-level-btn {
+                background: linear-gradient(135deg, #FFD700, #FFA500);
+                color: #000;
+                border: none;
+                padding: 15px 25px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+            }
+            
+            .hidden-level-btn:hover {
+                background: linear-gradient(135deg, #FFA500, #FFD700);
+                transform: translateY(-3px);
+                box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+            }
+            
+            .hidden-level-btn:disabled {
+                background: #666;
+                color: #999;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .close-btn {
+                background: #666;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                margin-top: 20px;
+            }
+            
+            .close-btn:hover {
+                background: #888;
+            }
+            
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.8);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Add event listeners
+    document.getElementById('closeHiddenMenu').addEventListener('click', () => {
+        document.body.removeChild(hiddenMenu);
+    });
+    
+    // Add click listeners for hidden level buttons
+    document.querySelectorAll('.hidden-level-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const levelNum = parseInt(btn.dataset.level);
+            alert(`Hidden Level ${levelNum - 15}: "${btn.textContent}" - Coming Soon!\n\nThese legendary levels are still being crafted by the banana ninja masters...`);
+        });
+    });
+    
+    // Close menu when clicking outside
+    hiddenMenu.addEventListener('click', (e) => {
+        if (e.target === hiddenMenu) {
+            document.body.removeChild(hiddenMenu);
+        }
+    });
+}
+
 // Collision Detection
 function checkCollision(rect1, rect2) {
     return rect1.x < rect2.x + rect2.width &&
@@ -709,14 +1085,16 @@ function update() {
     // Platform collisions
     let onGround = false;
     levelData.platforms.forEach(platform => {
-        if (checkCollision(player, platform)) {
+        const platformHitbox = platform.getHitbox();
+        if (checkCollision(player, platformHitbox)) {
             switch(platform.type) {
                 case 'normal':
                     // Land on top of platform only (allow movement through sides)
-                    if (player.velocityY > 0 && 
-                        player.y + player.height - player.velocityY <= platform.y && 
-                        player.y + player.height >= platform.y) {
-                        player.y = platform.y - player.height;
+                    if (player.velocityY >= 0 && 
+                        player.y < platformHitbox.y && 
+                        player.y + player.height > platformHitbox.y && 
+                        player.y + player.height < platformHitbox.y + platformHitbox.height) {
+                        player.y = platformHitbox.y - player.height;
                         player.velocityY = 0;
                         player.isJumping = false;
                         onGround = true;
@@ -724,10 +1102,11 @@ function update() {
                     break;
                 case 'bounce':
                     // Bounce only when landing from above (allow movement through sides)
-                    if (player.velocityY > 0 && 
-                        player.y + player.height - player.velocityY <= platform.y && 
-                        player.y + player.height >= platform.y) {
-                        player.y = platform.y - player.height;
+                    if (player.velocityY >= 0 && 
+                        player.y < platformHitbox.y && 
+                        player.y + player.height > platformHitbox.y && 
+                        player.y + player.height < platformHitbox.y + platformHitbox.height) {
+                        player.y = platformHitbox.y - player.height;
                         player.velocityY = BOUNCE_FORCE;
                         player.isJumping = true;
                     }
@@ -735,6 +1114,17 @@ function update() {
                 case 'obstacle':
                     player.lives--;
                     document.getElementById('livesCount').textContent = player.lives;
+                    
+                    // Show life lost popup
+                    showLifeLostPopup();
+                    
+                    // Add visual feedback for low lives
+                    const livesElement = document.getElementById('lives');
+                    if (player.lives <= 1) {
+                        livesElement.classList.add('low-lives');
+                    } else {
+                        livesElement.classList.remove('low-lives');
+                    }
                     if (player.lives <= 0) {
                         gameState = 'GAME_OVER';
                         document.getElementById('gameOverScreen').classList.add('active');
@@ -758,6 +1148,13 @@ function update() {
             coin.collected = true;
             player.score += 10;
             document.getElementById('coinsCount').textContent = player.score;
+            
+            // Add visual feedback for collecting coin
+            const coinsElement = document.getElementById('coins');
+            coinsElement.classList.add('collect-glow');
+            setTimeout(() => {
+                coinsElement.classList.remove('collect-glow');
+            }, 300);
         }
     });
 
@@ -776,16 +1173,25 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw background
-    ctx.fillStyle = '#87CEEB';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (prettySkyBgImg && prettySkyBgImg.complete && prettySkyBgImg.naturalWidth) {
+        // Draw the sky background image stretched to fill the entire canvas
+        ctx.drawImage(prettySkyBgImg, 0, 0, canvas.width, canvas.height);
+    } else {
+        // Fallback to solid sky blue color
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
-    // Draw level elements
-    levelData.platforms.forEach(platform => platform.draw());
+    // Draw level elements (coins first, then platforms so spikes appear above coins)
     levelData.coins.forEach(coin => coin.draw());
     levelData.lifeTokens?.forEach(token => token.draw());
+    levelData.platforms.forEach(platform => platform.draw());
 
     // Draw player
     player.draw();
+    
+    // Update timer display
+    updateTimerDisplay();
 }
 
 function gameLoop() {
@@ -806,6 +1212,13 @@ function loadLevel(level) {
     document.getElementById('hud').classList.remove('hidden');
     // Update level display in HUD
     document.getElementById('currentLevel').textContent = currentLevel + 1;
+    
+    // Start timer when loading level 1 for the first time
+    if (currentLevel === 0 && !isTimerRunning) {
+        startTimer();
+        // Show level 1 announcement when starting the game
+        setTimeout(() => showLevelAnnouncement(1), 500);
+    }
 }
 
 function updateLevelSelectUI() {
@@ -833,6 +1246,68 @@ function updateLevelSelectUI() {
         });
         
         levelGrid.appendChild(btn);
+    }
+    
+    // Add hidden levels arrow if ultimate ninja is unlocked
+    const ultimateUnlocked = localStorage.getItem('ultimateNinjaUnlocked') === 'true';
+    const existingArrow = document.getElementById('hiddenLevelsArrow');
+    
+    if (ultimateUnlocked && !existingArrow) {
+        const arrowContainer = document.createElement('div');
+        arrowContainer.id = 'hiddenLevelsArrow';
+        arrowContainer.innerHTML = `
+            <div class="secret-arrow">
+                <div class="arrow-text">Secret Levels</div>
+                <div class="arrow-icon">➤</div>
+            </div>
+        `;
+        arrowContainer.style.cssText = `
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            animation: pulseGlow 2s infinite;
+        `;
+        
+        arrowContainer.addEventListener('click', showHiddenLevelsMenu);
+        document.getElementById('level-select-screen').appendChild(arrowContainer);
+        
+        // Add CSS animation for the glowing effect
+        if (!document.getElementById('hiddenLevelsCSS')) {
+            const style = document.createElement('style');
+            style.id = 'hiddenLevelsCSS';
+            style.textContent = `
+                .secret-arrow {
+                    background: linear-gradient(135deg, #FFD700, #FFA500);
+                    color: #000;
+                    padding: 15px 20px;
+                    border-radius: 25px;
+                    text-align: center;
+                    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+                    border: 2px solid #FFD700;
+                    font-weight: bold;
+                }
+                
+                .arrow-text {
+                    font-size: 14px;
+                    margin-bottom: 5px;
+                }
+                
+                .arrow-icon {
+                    font-size: 20px;
+                    transform: scaleX(1.5);
+                }
+                
+                @keyframes pulseGlow {
+                    0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); }
+                    50% { box-shadow: 0 0 25px rgba(255, 215, 0, 1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    } else if (!ultimateUnlocked && existingArrow) {
+        existingArrow.remove();
     }
 }
 
@@ -869,6 +1344,7 @@ document.getElementById('retryLevel').addEventListener('click', () => {
     currentLevel = 0;
     localStorage.setItem('maxLevelReached', 1);
     resetGame();
+    resetTimer();
     loadLevel(allLevels[0]); // Load level 1
     gameState = 'PLAYING';
     document.getElementById('gameOverScreen').classList.remove('active');
@@ -927,6 +1403,7 @@ const victoryMainMenuBtn = document.getElementById('victoryMainMenu');
 if (playAgainVictoryBtn) {
     playAgainVictoryBtn.addEventListener('click', () => {
         resetGame();
+        resetTimer();
         maxLevelReached = 1;
         localStorage.setItem('maxLevelReached', 1);
         gameState = 'LEVEL_SELECT';
@@ -948,11 +1425,11 @@ if (victoryMainMenuBtn) {
 function resetLevel() {
     // Reset level position and coins, but keep lives
     player.x = 50;
-    player.y = 470; // Ground is at y=550, so player spawns at 550 - 80 = 470
+    player.y = 495; // Ground hitbox is at y=575, so player spawns at 575 - 80 = 495
     player.velocityX = 0;
     player.velocityY = 0;
     player.checkpointX = 50;
-    player.checkpointY = 470;
+    player.checkpointY = 495;
     document.getElementById('coinsCount').textContent = player.score;
     levelData.coins.forEach(coin => coin.collected = false);
 }
@@ -960,16 +1437,19 @@ function resetLevel() {
 function resetGame() {
     // Full reset: reset everything including lives (for main menu/new game)
     player.x = 50;
-    player.y = 470; // Ground is at y=550, so player spawns at 550 - 80 = 470
+    player.y = 495; // Ground hitbox is at y=575, so player spawns at 575 - 80 = 495
     player.velocityX = 0;
     player.velocityY = 0;
     player.lives = 3;
     player.score = 0;
     player.checkpointX = 50;
-    player.checkpointY = 470;
+    player.checkpointY = 495;
     document.getElementById('livesCount').textContent = player.lives;
     document.getElementById('coinsCount').textContent = player.score;
     levelData.coins.forEach(coin => coin.collected = false);
+    
+    // Reset timer
+    resetTimer();
 }
 
 document.getElementById('backToMain').addEventListener('click', () => {
@@ -981,18 +1461,25 @@ document.getElementById('backToMain').addEventListener('click', () => {
 
 // Update collision handling for bounce pads and level completion
 function handleCollision(platform) {
-    if (checkCollision(player, platform)) {
+    const platformHitbox = platform.getHitbox();
+    if (checkCollision(player, platformHitbox)) {
         switch(platform.type) {
             case 'normal':
             case 'checkpoint':
-                if (player.velocityY > 0 && player.y + player.height - player.velocityY <= platform.y) {
-                    player.y = platform.y - player.height;
+                if (player.velocityY >= 0 && 
+                    player.y < platformHitbox.y && 
+                    player.y + player.height > platformHitbox.y && 
+                    player.y + player.height < platformHitbox.y + platformHitbox.height) {
+                    player.y = platformHitbox.y - player.height;
                     player.velocityY = 0;
                     player.isJumping = false;
                 }
                 break;
             case 'bounce':
-                if (player.velocityY > 0 && player.y + player.height - player.velocityY <= platform.y) {
+                if (player.velocityY >= 0 && 
+                    player.y < platformHitbox.y && 
+                    player.y + player.height > platformHitbox.y && 
+                    player.y + player.height < platformHitbox.y + platformHitbox.height) {
                     player.velocityY = BOUNCE_FORCE;
                     player.isJumping = true;
                 }
@@ -1012,7 +1499,7 @@ function handleCollision(platform) {
                 break;
             case 'checkpoint':
                 player.checkpointX = platform.x;
-                player.checkpointY = platform.y - player.height;
+                player.checkpointY = platformHitbox.y - player.height;
                 break;
             case 'goal':
                 if (currentLevel + 1 > maxLevelReached) {
@@ -1055,6 +1542,14 @@ if (document.readyState === 'loading') {
 // Handle win state and progression
 function onWin() {
     gameState = 'WIN';
+    
+    // Add visual feedback for level completion
+    const levelElement = document.getElementById('level-display');
+    levelElement.classList.add('level-complete');
+    setTimeout(() => {
+        levelElement.classList.remove('level-complete');
+    }, 500);
+    
     // Update progression
     if (currentLevel + 1 > maxLevelReached) {
         maxLevelReached = currentLevel + 1;
@@ -1063,20 +1558,28 @@ function onWin() {
     
     // Check if all levels are completed
     if (currentLevel >= allLevels.length - 1) {
-        // Show victory screen
+        // Stop timer and show victory screen with completion time
+        stopTimer();
         gameState = 'VICTORY';
         document.getElementById('gameCanvas').classList.remove('visible');
         document.getElementById('victoryScreen').classList.add('active');
+        document.getElementById('hud').classList.add('hidden');
         document.getElementById('totalCoins').textContent = player.score;
-    } else {
-        // Show level complete screen
-        const win = document.getElementById('winScreen');
-        win.classList.add('active');
-        document.getElementById('levelCompleted').textContent = currentLevel + 1;
-        document.getElementById('winFinalScore').textContent = player.score;
-        const nextBtn = document.getElementById('nextLevel');
-        if (nextBtn) {
-            nextBtn.style.display = 'block';
+        
+        // Display completion time
+        const completionTimeElement = document.getElementById('completionTime');
+        if (completionTimeElement) {
+            completionTimeElement.textContent = formatTime(totalGameTime);
         }
+        
+        // Check for ULTIMATE banana-rama ninja achievement
+        checkUltimateAchievement();
+    } else {
+        // Brief pause before advancing to next level for smooth transition
+        setTimeout(() => {
+            currentLevel += 1;
+            loadLevel(allLevels[currentLevel]);
+            showLevelAnnouncement(currentLevel + 1);
+        }, 250); // 0.25 second pause before advancing
     }
 }
