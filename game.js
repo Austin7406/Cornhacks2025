@@ -24,6 +24,15 @@ let gameStartTime = null;
 let totalGameTime = 0;
 let isTimerRunning = false;
 
+// User Management System
+let currentPlayerName = localStorage.getItem('playerName') || null;
+
+// Leaderboard System
+let leaderboardData = JSON.parse(localStorage.getItem('leaderboardData')) || {
+    bestTime: [],
+    highestCoins: []
+};
+
 // Initialize Canvas
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -829,6 +838,167 @@ function updateTimerDisplay() {
     }
 }
 
+// User Management Functions
+function promptForPlayerName(isFirstTime = true) {
+    const message = isFirstTime 
+        ? 'Welcome to Banana-Rama Ninja! 🥷🍌\n\nPlease enter your ninja name for the leaderboard:'
+        : 'Enter your new ninja name:';
+    
+    let name = prompt(message);
+    
+    // Validate name input
+    while (!name || name.trim().length === 0 || name.trim().length > 20) {
+        if (name === null) {
+            // User cancelled - use default name if first time
+            if (isFirstTime) {
+                name = 'Anonymous Ninja';
+                break;
+            } else {
+                return; // Don't change name if user cancels on name change
+            }
+        } else {
+            name = prompt('Please enter a valid name (1-20 characters):');
+        }
+    }
+    
+    currentPlayerName = name.trim();
+    localStorage.setItem('playerName', currentPlayerName);
+    updatePlayerNameDisplay();
+    
+    if (!isFirstTime) {
+        alert(`Your ninja name has been changed to "${currentPlayerName}"! 🥷`);
+    }
+}
+
+function updatePlayerNameDisplay() {
+    const playerNameElement = document.getElementById('playerName');
+    if (playerNameElement && currentPlayerName) {
+        playerNameElement.textContent = currentPlayerName;
+    }
+}
+
+// Leaderboard Management Functions
+function addScoreToLeaderboard(playerName, completionTime, totalCoins) {
+    // Add to best time leaderboard
+    leaderboardData.bestTime.push({
+        name: playerName,
+        time: completionTime,
+        coins: totalCoins,
+        date: new Date().toLocaleDateString()
+    });
+    
+    // Add to highest coins leaderboard
+    leaderboardData.highestCoins.push({
+        name: playerName,
+        time: completionTime,
+        coins: totalCoins,
+        date: new Date().toLocaleDateString()
+    });
+    
+    // Sort and keep top 10 for each category
+    leaderboardData.bestTime.sort((a, b) => a.time - b.time);
+    leaderboardData.highestCoins.sort((a, b) => b.coins - a.coins);
+    
+    // Keep only top 10 entries
+    leaderboardData.bestTime = leaderboardData.bestTime.slice(0, 10);
+    leaderboardData.highestCoins = leaderboardData.highestCoins.slice(0, 10);
+    
+    // Save to localStorage
+    localStorage.setItem('leaderboardData', JSON.stringify(leaderboardData));
+}
+
+function resetLeaderboard() {
+    leaderboardData = {
+        bestTime: [],
+        highestCoins: []
+    };
+    localStorage.removeItem('leaderboardData');
+}
+
+// Leaderboard UI Functions
+function showLeaderboard() {
+    document.getElementById('leaderboardScreen').classList.add('active');
+    document.getElementById('currentPlayerDisplay').textContent = currentPlayerName || 'Anonymous Ninja';
+    displayLeaderboardEntries('time'); // Default to time filter
+}
+
+function hideLeaderboard() {
+    document.getElementById('leaderboardScreen').classList.remove('active');
+}
+
+function displayLeaderboardEntries(filterType) {
+    const tableElement = document.getElementById('leaderboardTable');
+    const timeBtn = document.getElementById('filterByTime');
+    const coinsBtn = document.getElementById('filterByCoins');
+    
+    // Update active filter button
+    timeBtn.classList.toggle('active', filterType === 'time');
+    coinsBtn.classList.toggle('active', filterType === 'coins');
+    
+    // Get appropriate data
+    const data = filterType === 'time' ? leaderboardData.bestTime : leaderboardData.highestCoins;
+    
+    if (data.length === 0) {
+        tableElement.innerHTML = `
+            <div class="no-scores">
+                <p>🍌 No scores yet! 🍌</p>
+                <p>Complete the game to set your first record!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create table header
+    const headerText = filterType === 'time' ? 'Best Completion Times' : 'Highest Coin Scores';
+    const primaryStat = filterType === 'time' ? 'Time' : 'Coins';
+    const secondaryStat = filterType === 'time' ? 'Coins' : 'Time';
+    
+    let tableHTML = `
+        <div class="leaderboard-header">
+            <h3>${headerText}</h3>
+        </div>
+        <div class="leaderboard-table">
+            <div class="table-header">
+                <span class="rank-col">Rank</span>
+                <span class="name-col">Ninja Name</span>
+                <span class="stat-col">${primaryStat}</span>
+                <span class="stat-col">${secondaryStat}</span>
+                <span class="date-col">Date</span>
+            </div>
+    `;
+    
+    // Add data rows
+    data.forEach((entry, index) => {
+        const rank = index + 1;
+        const rankEmoji = getRankEmoji(rank);
+        const primaryValue = filterType === 'time' ? formatTime(entry.time) : entry.coins.toLocaleString();
+        const secondaryValue = filterType === 'time' ? entry.coins.toLocaleString() : formatTime(entry.time);
+        const isCurrentPlayer = entry.name === currentPlayerName;
+        
+        tableHTML += `
+            <div class="table-row ${isCurrentPlayer ? 'current-player' : ''}">
+                <span class="rank-col">${rankEmoji} ${rank}</span>
+                <span class="name-col">${entry.name}</span>
+                <span class="stat-col">${primaryValue}</span>
+                <span class="stat-col">${secondaryValue}</span>
+                <span class="date-col">${entry.date}</span>
+            </div>
+        `;
+    });
+    
+    tableHTML += '</div>';
+    tableElement.innerHTML = tableHTML;
+}
+
+function getRankEmoji(rank) {
+    switch(rank) {
+        case 1: return '🥇';
+        case 2: return '🥈';
+        case 3: return '🥉';
+        default: return '🏅';
+    }
+}
+
 function showLevelAnnouncement(levelNumber) {
     const announcement = document.getElementById('levelAnnouncement');
     if (announcement) {
@@ -1445,12 +1615,15 @@ document.getElementById('mainMenuBtn').addEventListener('click', () => {
 
 document.getElementById('resetProgress').addEventListener('click', () => {
     // Show confirmation dialog
-    const confirmed = confirm('Are you sure you want to reset ALL progress? This will:\n\n• Reset all unlocked levels back to level 1 only\n• Remove the ULTIMATE banana-rama ninja achievement\n• Hide the secret levels button\n• Reset your current game\n\nThis action cannot be undone!');
+    const confirmed = confirm('Are you sure you want to reset ALL progress? This will:\n\n• Reset all unlocked levels back to level 1 only\n• Remove the ULTIMATE banana-rama ninja achievement\n• Hide the secret levels button\n• Clear all leaderboard scores\n• Reset your current game\n\nThis action cannot be undone!');
     
     if (confirmed) {
         // Clear all localStorage data
         localStorage.removeItem('maxLevelReached');
         localStorage.removeItem('ultimateNinjaUnlocked');
+        
+        // Reset leaderboard
+        resetLeaderboard();
         
         // Reset game variables
         maxLevelReached = 1;
@@ -1470,6 +1643,28 @@ document.getElementById('resetProgress').addEventListener('click', () => {
             alert('Progress has been reset! You are back to the beginning of your ninja journey. 🥷🍌');
         }, 500);
     }
+});
+
+// Leaderboard Event Listeners
+document.getElementById('leaderboardBtn').addEventListener('click', () => {
+    showLeaderboard();
+});
+
+document.getElementById('closeLeaderboard').addEventListener('click', () => {
+    hideLeaderboard();
+});
+
+document.getElementById('filterByTime').addEventListener('click', () => {
+    displayLeaderboardEntries('time');
+});
+
+document.getElementById('filterByCoins').addEventListener('click', () => {
+    displayLeaderboardEntries('coins');
+});
+
+document.getElementById('changePlayerName').addEventListener('click', () => {
+    promptForPlayerName(false);
+    document.getElementById('currentPlayerDisplay').textContent = currentPlayerName || 'Anonymous Ninja';
 });
 
 document.getElementById('retryLevel').addEventListener('click', () => {
@@ -1651,11 +1846,21 @@ function handleCollision(platform) {
 
 // Initialize game (ensure DOM loaded)
 function initGame() {
+    // Check if player name exists, if not prompt for it
+    if (!currentPlayerName) {
+        // Slight delay to ensure UI is loaded
+        setTimeout(() => {
+            promptForPlayerName(true);
+        }, 500);
+    } else {
+        updatePlayerNameDisplay();
+    }
+    
     // Show main menu on startup
     document.getElementById('mainMenu').classList.add('active');
     document.getElementById('level-select-screen').classList.remove('active');
     // Hide other overlays just in case
-    ['pauseMenu','gameOverScreen','winScreen'].forEach(id => {
+    ['pauseMenu','gameOverScreen','winScreen','leaderboardScreen'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('active');
     });
@@ -1704,6 +1909,11 @@ function onWin() {
         const completionTimeElement = document.getElementById('completionTime');
         if (completionTimeElement) {
             completionTimeElement.textContent = formatTime(totalGameTime);
+        }
+        
+        // Record score to leaderboard
+        if (currentPlayerName) {
+            addScoreToLeaderboard(currentPlayerName, totalGameTime, player.score);
         }
         
         // Check for ULTIMATE banana-rama ninja achievement
