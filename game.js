@@ -728,12 +728,15 @@ const keys = {
 document.addEventListener('keydown', (e) => {
     switch(e.key.toLowerCase()) {
         case 'a':
+        case 'arrowleft':
             keys.left = true;
             break;
         case 'd':
+        case 'arrowright':
             keys.right = true;
             break;
         case 'w':
+        case 'arrowup':
         case ' ':
             keys.jump = true;
             if (gameState === 'PLAYING' && !player.isJumping) {
@@ -754,12 +757,15 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     switch(e.key.toLowerCase()) {
         case 'a':
+        case 'arrowleft':
             keys.left = false;
             break;
         case 'd':
+        case 'arrowright':
             keys.right = false;
             break;
         case 'w':
+        case 'arrowup':
         case ' ':
             keys.jump = false;
             // Variable jump height
