@@ -69,6 +69,10 @@ bananaCoinImg.src = 'assets/sprites/banana_coin.png';
 const spikesImg = new Image();
 spikesImg.src = 'assets/sprites/spikes.png';
 
+// Life token sprite images
+const medKitImg = new Image();
+medKitImg.src = 'assets/sprites/med_kit.png';
+
 // Background images
 const prettySkyBgImg = new Image();
 prettySkyBgImg.src = 'assets/sprites/pretty_sky_bg.png';
@@ -333,18 +337,23 @@ class LifeToken {
 
     draw() {
         if (!this.collected) {
-            // Draw green heart-shaped token
-            ctx.fillStyle = '#00FF00';
-            ctx.beginPath();
-            ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw white star/plus in center to indicate extra life
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'bold 14px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('+', this.x + this.width/2, this.y + this.height/2);
+            // Use med_kit sprite if available, otherwise fallback to green circle
+            if (medKitImg && medKitImg.complete && medKitImg.naturalWidth) {
+                ctx.drawImage(medKitImg, this.x, this.y, this.width + 10, this.height + 10);
+            } else {
+                // Fallback: Draw green heart-shaped token
+                ctx.fillStyle = '#00FF00';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw white star/plus in center to indicate extra life
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('+', this.x + this.width/2, this.y + this.height/2);
+            }
 
             // Draw collision box for debugging
             drawCollisionBox(this.x, this.y, this.width, this.height);
@@ -906,7 +915,7 @@ function updatePlayerNameDisplay() {
 // Leaderboard Management Functions
 function addScoreToLeaderboard(playerName, completionTime, totalCoins) {
     // Check if this is an ultimate ninja achievement
-    const isUltimateNinja = completionTime < 180 && totalCoins >= 150;
+    const isUltimateNinja = completionTime < 180 && totalCoins >= 125;
     
     // Add to best time leaderboard
     leaderboardData.bestTime.push({
@@ -1128,7 +1137,7 @@ function showLifeGainedPopup() {
 
 function checkUltimateAchievement() {
     const completedInUnder3Minutes = totalGameTime < 180; // 3 minutes = 180 seconds
-    const collectedOver100Coins = player.score >= 150; // 150 coins = 150 points
+    const collectedOver100Coins = player.score >= 125; // 125 coins = 125 points
     
     if (completedInUnder3Minutes && collectedOver100Coins) {
         // Unlock hidden levels and show achievement message
@@ -1139,7 +1148,7 @@ function checkUltimateAchievement() {
         achievementMsg.id = 'ultimateAchievement';
         achievementMsg.innerHTML = `
             <h2>🏆 ULTIMATE BANANA-RAMA NINJA! 🏆</h2>
-            <p>Incredible! You've completed all levels in under 3 minutes with over 150 coins!</p>
+            <p>Incredible! You've completed all levels in under 3 minutes with over 125 coins!</p>
             <p>A surprise is waiting for you in the level select menu...</p>
         `;
         achievementMsg.style.cssText = `
